@@ -1,4 +1,4 @@
-import { BinaryReader, Flags }from './utils';
+import { BinaryReader, Flags }from './utils.js';
 
 export const TCPFlags = new Flags([
   'FIN',

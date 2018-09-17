@@ -1,7 +1,7 @@
-import { BinaryReader } from './utils';
-import { TCPSegment } from './tcp';
-import { UDPSegment } from './udp';
-import { ICMPSegment } from './icmp';
+import { BinaryReader } from './utils.js';
+import { TCPSegment } from './tcp.js';
+import { UDPSegment } from './udp.js';
+import { ICMPSegment } from './icmp.js';
 
 export const SegmentTypes = {
   1: ICMPSegment,

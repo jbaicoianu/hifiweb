@@ -1,4 +1,4 @@
-import { BinaryReader } from './utils';
+import { BinaryReader } from './utils.js';
 
 export class UDPSegment extends BinaryReader {
   constructor(data, offset) {

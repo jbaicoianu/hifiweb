@@ -1,5 +1,5 @@
-import { BinaryReader } from './utils';
-import { IPv4Datagram } from './ipv4';
+import { BinaryReader } from './utils.js';
+import { IPv4Datagram } from './ipv4.js';
 
 export class EthernetFrame extends BinaryReader {
   constructor(data, offset) {

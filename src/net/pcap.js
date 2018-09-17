@@ -1,5 +1,5 @@
-import { BinaryReader } from './utils';
-import { EthernetFrame } from './ethernet';
+import { BinaryReader } from './utils.js';
+import { EthernetFrame } from './ethernet.js';
 
 export class PCAPReader {
   constructor(url) {

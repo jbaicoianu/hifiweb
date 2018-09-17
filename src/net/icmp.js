@@ -1,4 +1,4 @@
-import { BinaryReader } from './utils';
+import { BinaryReader } from './utils.js';
 
 export class ICMPSegment extends BinaryReader {
   constructor(data, offset) {
