@@ -69,4 +69,19 @@ export class PCAPRecord extends BinaryReader {
     return this.incl_len + 16;
   }
 };
+export class PCAPTimestamp {
+  constructor(sec, usec) {
+    this.sec = sec;
+    this.usec = usec;
+  }
 
+  diff(ts) {
+    let diff_sec = ts.sec - this.sec,
+        diff_usec = ts.usec - this.usec;
+    if (diff_usec < 0) {
+      diff_sec -= 1;
+      diff_usec += 1e6;
+    }
+    return diff_sec + (diff_usec / 1e6);
+  }
+};
