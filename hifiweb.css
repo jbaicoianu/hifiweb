@@ -1,0 +1,52 @@
+hifi-packetlist {
+  display: block;
+  width: 50%;
+}
+hifi-packet {
+  display: block;
+  border: 1px solid black;
+  background: #cfc;
+  margin: .5em;
+  padding: .5em;
+  width: 50%;
+}
+hifi-packet h3 {
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid black;
+  font-size: 1.2em;
+}
+hifi-packet h4 {
+  font-size: .8em;
+  font-weight: normal;
+  margin: 0;
+}
+hifi-packet.receiving {
+  margin-left: 10%;
+  background: #ccf;
+}
+
+.packetflags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.packetflags li {
+  display: inline-block;
+  margin-right: 1em;
+}
+.packetflags li::before {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  border: 1px solid black;
+  background: red;
+  content: ' ';
+  vertical-align: middle;
+  margin-right: .2em;
+}
+
+.packetflags li.selected::before {
+  background: green;
+}
