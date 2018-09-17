@@ -47,7 +47,7 @@ export class BinaryReader {
   }
 };
 
-export function hexdump(data, title='') {
+export function hexdumpstr(data, title='', ) {
   let arr = data;
   if (data instanceof DataView || data instanceof ArrayBuffer) {
     arr = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
@@ -55,7 +55,6 @@ export function hexdump(data, title='') {
   let offset = 0;
   let line = offset.toString().padStart(4, 0) + ': ';
   let ascii = '';
-  console.log('==========', title, '==========');
   for (let i = 0; i < arr.length; i++) {
     if (i > 0 && i % 8 == 0) {
       line += '  ';
@@ -75,8 +74,12 @@ export function hexdump(data, title='') {
     if (ascii != '') {
       line = line.padEnd(Math.ceil(line.length / 71) * 71 - 19) + ' | ' + ascii.padEnd(16) + ' |'
     }
-    console.log(line);
+    return line;
   }
+}
+export function hexdump(data, title='', ) {
+  console.log('==========', title, '==========');
+  console.log(hexdumpstr(data, title));
 }
 export class Enum {
   constructor(values) {
