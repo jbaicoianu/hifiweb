@@ -1,4 +1,4 @@
-import { BinaryReader, Enum, parseBinaryData, hexdump } from './net/utils.js';
+import { BinaryReader, Enum, parseBinaryData, hexdump, hexdumpstr } from './net/utils.js';
 import * as pcap from './net/pcap.js';
 
 const HifiPacketType = new Enum([
@@ -172,7 +172,7 @@ class HifiPacket extends BinaryReader {
       reliable: this.sequenceNumberAndBitField >> 30 & 1,
       message: this.sequenceNumberAndBitField >> 29 & 1,
     };
-    this.sequenceNumber = this.sequenceNumberAndBitField & 0x7ffffff;
+    this.sequenceNumber = this.sequenceNumberAndBitField & 0x07FFFFFF;
 
     let headeroffset = 4;
     if (this.flags.message) {
@@ -276,31 +276,101 @@ function handleAudioPacket(packet) {
   let strlen = boo.read('Uint32', 2);
   let str = boo.readString(6, Math.min(strlen, boo._data.byteLength - 6));
   console.log('Received audio packet', seq, strlen, str, msg);
+  let offset = 2 + 4 + strlen;
+  
 }
 
 receiver.registerListener(HifiPacketType.SilentAudioFrame, handleAudioPacket);
 receiver.registerListener(HifiPacketType.MixedAudio, handleAudioPacket);
 
-let capture = new pcap.PCAPReader();
-let servers = {
-  'stun': '54.67.22.242',
-  'domain': '35.162.187.39'
-};
-var packets = window.packets = [];
-capture.load('data/hifi-packet-dump-pcm.pcap').then((records) => {
-  console.log('Parsed PCAP packets:', records, capture);
-  records.forEach(r => {
-    let packet = r.frame.datagram;
-    // FIXME - we're only looking at the conversation between the client and domain server right now, which means no ICE or STUN packets right now
-    if (packet.dstAddr == servers.domain || packet.srcAddr == servers.domain) {
-      try {
-        let foo = new HifiPacket(packet);
-        //console.log('the packet: ' + packet.srcAddr + ':' + packet.segment.srcPort + ' => ' + packet.dstAddr + ':' + packet.segment.dstPort, HifiPacketType.fromValue(foo.packetType), foo, packet);
-        packets.push(foo);
-        receiver.handlePacket(foo);
-      } catch (e) {
-        console.warn('Failed to parse HifiPacket!', packet, e);
-      }
+class HifiPacketList extends HTMLElement {
+  constructor() {
+    super();
+  }
+  load(url) {
+    let capture = new pcap.PCAPReader();
+    let servers = {
+      'stun': '54.67.22.242',
+      'domain': '35.162.187.39',
+      'self': '192.168.42.248'
+    };
+    var packets = window.packets = [];
+    capture.load(url).then((records) => {
+      console.log('Parsed PCAP packets:', records, capture);
+      let start = new pcap.PCAPTimestamp(records[0].ts_sec, records[0].ts_usec);
+      records.forEach(r => {
+        let packet = r.frame.datagram;
+        // FIXME - we're only looking at the conversation between the client and domain server right now, which means no ICE or STUN packets right now
+        let ts = new pcap.PCAPTimestamp(r.ts_sec, r.ts_usec);
+console.log('diff', start.diff(ts), ts, start);
+        if (packet.dstAddr == servers.domain || packet.srcAddr == servers.domain) {
+          try {
+setTimeout(() => {
+            let hifipacket = new HifiPacket(packet);
+            //console.log('the packet: ' + packet.srcAddr + ':' + packet.segment.srcPort + ' => ' + packet.dstAddr + ':' + packet.segment.dstPort, HifiPacketType.fromValue(hifipacket.packetType), hifipacket, packet);
+            packets.push(hifipacket);
+            receiver.handlePacket(hifipacket);
+
+            let packetel = document.createElement('hifi-packet');
+            packetel.setPacket(hifipacket, hifipacket.packet.srcAddr == servers.self);
+            this.appendChild(packetel);
+}, 0);
+          } catch (e) {
+            console.warn('Failed to parse HifiPacket!', packet, e);
+          }
+        }
+      });
+    });
+
+  }
+}
+class HifiPacketDebug extends HTMLElement {
+  setPacket(packet, sendpacket) {
+    let header = document.createElement('h3'),
+        subheader = document.createElement('h4'),
+        flags = document.createElement('ul'),
+        hex = document.createElement('pre');
+    header.innerHTML = packet.getPacketType() + ' (' + packet.packetType + ') ' + 'seqid ' + packet.sequenceNumber;
+
+    if (sendpacket) {
+      this.className = 'sending';
+      subheader.innerHTML = packet.packet.srcAddr + ':' + packet.packet.segment.srcPort + ' <strong>=&gt;</strong> ' + packet.packet.dstAddr + ':' + packet.packet.segment.dstPort;
+    } else {
+      this.className = 'receiving';
+      subheader.innerHTML = packet.packet.dstAddr + ':' + packet.packet.segment.dstPort + ' <strong>&lt;=</strong> ' + packet.packet.srcAddr + ':' + packet.packet.segment.srcPort;
     }
-  });
-});
+
+    hex.innerHTML += hexdumpstr(packet._data);
+
+    let flag_control = document.createElement('li'),
+        flag_reliable = document.createElement('li'),
+        flag_message = document.createElement('li');
+
+    flags.className = 'packetflags';
+
+    flag_control.innerHTML = 'control';
+    flag_reliable.innerHTML = 'reliable';
+    flag_message.innerHTML = 'message';
+
+    if (packet.flags.control) flag_control.className = 'selected';
+    if (packet.flags.reliable) flag_reliable.className = 'selected';
+    if (packet.flags.message) flag_message.className = 'selected';
+
+    flags.appendChild(flag_control);
+    flags.appendChild(flag_reliable);
+    flags.appendChild(flag_message);
+
+    subheader.appendChild(flags);
+
+    this.appendChild(header);
+    this.appendChild(subheader);
+    this.appendChild(hex);
+
+  }
+}
+customElements.define('hifi-packetlist', HifiPacketList);
+customElements.define('hifi-packet', HifiPacketDebug);
+
+let plist = document.createElement('hifi-packetlist');
+plist.load('data/hifi-packet-dump-pcm.pcap');
+document.body.appendChild(plist);
