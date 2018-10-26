@@ -81,32 +81,7 @@ export function hexdump(data, title='', ) {
   console.log('==========', title, '==========');
   console.log(hexdumpstr(data, title));
 }
-export class Enum {
-  constructor(values) {
-    for (let i = 0; i < values.length; i++) {
-      this[values[i]] = i;
-    }
-    return Object.freeze(this);
-  }
-  fromValue(value) {
-    for (var k in this) {
-      if (this[k] == value) return k;
-    }
-  }
-};
-export class Flags {
-  constructor(values) {
-    for (let i = 0; i < values.length; i++) {
-      this[values[i]] = 1 << i;
-    }
-    return Object.freeze(this);
-  }
-  fromValue(value) {
-    for (var k in this) {
-      if (this[k] == value) return k;
-    }
-  }
-};
+
 export function parseBinaryData(data, schema, offset, littleEndian) {
   let parsed = {};
   for (let k in schema) {
