@@ -1,5 +1,8 @@
 hifi-packetlist {
   display: block;
+  height: 60em;
+  border: 1px solid black;
+  overflow-y: auto;
 }
 hifi-packet {
   display: block;
@@ -14,6 +17,7 @@ hifi-packet h3 {
   padding: 0;
   border-bottom: 1px solid black;
   font-size: 1.2em;
+  position: relative;
 }
 hifi-packet h4 {
   font-size: .8em;
@@ -24,7 +28,14 @@ hifi-packet.receiving {
   margin-left: 10%;
   background: #ccf;
 }
-
+hifi-packet .timestamp::before {
+  content: 't+';
+}
+hifi-packet .timestamp {
+  position: absolute;
+  right: 0;
+  font-weight: normal;
+}
 .packetflags {
   list-style: none;
   margin: 0;
