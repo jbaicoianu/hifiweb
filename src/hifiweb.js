@@ -1,5 +1,7 @@
 import { BinaryReader, Enum, parseBinaryData, hexdump, hexdumpstr } from './net/utils.js';
 import * as pcap from './net/pcap.js';
+import * as structviewer from './net/structviewer.js';
+import * as hifipackets from './net/hifi.js';
 
 const HifiPacketType = new Enum([
   'Unknown',
@@ -190,7 +192,7 @@ class HifiPacket extends BinaryReader {
       //md5: 'Uint8[16]'
     }, headeroffset);
     this.headerOffset = headeroffset + this.totalHeaderSize();
-    hexdump(this._data, this.getPacketType() + ' (' + this.packetType + ') ' + this.packet.srcAddr + ':' + this.packet.segment.srcPort + ' => ' + this.packet.dstAddr + ':' + this.packet.segment.dstPort);
+    //hexdump(this._data, this.getPacketType() + ' (' + this.packetType + ') ' + this.packet.srcAddr + ':' + this.packet.segment.srcPort + ' => ' + this.packet.dstAddr + ':' + this.packet.segment.dstPort);
   }
   totalHeaderSize() {
     return 4 + (this.flags.message ? 16 : 0) + this.localHeaderSize() + 13; //* FIXME - offset is wrong in many case */ 
@@ -241,17 +243,273 @@ class HifiPacketReceiver {
   }
 };
 
+class HifiWebClient {
+  constructor() {
+    this.startTime = new Date().getTime();
+    let receiver = this.receiver = new HifiPacketReceiver();
+    receiver.registerListener(HifiPacketType.ICEPing, (data) => {
+      //console.log('handle ping', data);
+    });
+    receiver.registerListener(HifiPacketType.STUNResponse, (data) => {
+      //console.log('handle STUNResponse', data);
+    });
+    receiver.registerListener(HifiPacketType.DomainConnectRequest, (data) => this.handleDomainConnectRequest(data));
+    receiver.registerListener(HifiPacketType.DomainList, (data) => this.handleDomainList(data));
+    receiver.registerListener(HifiPacketType.MixedAudio, (data) => this.handleAudioPacket(data));
 
-let receiver = new HifiPacketReceiver();
-receiver.registerListener(HifiPacketType.ICEPing, (data) => {
-  //console.log('handle ping', data);
+    this.packetdebugger = document.createElement('struct-viewer');
+    document.body.appendChild(this.packetdebugger);
+
+    this.packets = hifipackets;
+
+    this.avatar = new HifiAvatar();
+
+    this.connectToRelay();
+  }
+
+  connectToRelay() {
+    console.log('Starting connection to hifi relay');
+    this.webrtcoptions = {};
+    this.peerconnection = null;
+    this.channels = {
+      domain: null,
+      audio: null,
+      avatar: null,
+      entity: null,
+      entityscript: null,
+      message: null,
+      asset: null,
+    };
+    this.remoteCandidates = [];
+    this.signalserver = new WebSocket('ws://hifi.janusvr.com:8118');
+    this.signalserver.addEventListener('message', (ev) => this.handleSignalMessage(ev));
+  }
+
+  handleSignalMessage(event) {
+    var msg = JSON.parse(event.data);
+    //console.log("message", msg);
+
+    switch (msg.type) {
+      case 'candidate':
+        if (msg.candidate && msg.candidate.candidate) {
+          if (!this.hasAnswer) {
+            this.remoteCandidates.push(msg.candidate);
+          } else {
+            console.log("Received ICE candidate", msg.candidate);
+            this.peerconnection.addIceCandidate(new RTCIceCandidate(msg.candidate));
+          }
+        }
+        break;
+      case 'answer':
+        console.log("answer");
+        this.peerconnection.setRemoteDescription(new RTCSessionDescription(msg))
+        .then(() => {
+          this.hasAnswer = true;
+          var i = 0;
+          for (i = 0; i < this.remoteCandidates.length; i++) {
+            this.peerconnection.addIceCandidate(new RTCIceCandidate(this.remoteCandidates[i]));
+          }
+        });
+        break;
+      case 'connected':
+        //Send Domain Name to relay for lookup
+        var msg ={
+          type: 'domain',
+          domain_name: 'hifi://janusvr'
+        };
+        this.signalserver.send(JSON.stringify(msg));
+
+        this.peerconnection = new RTCPeerConnection({
+          iceServers: [{
+            urls: [
+              "stun:stun.l.google.com:19302",
+              "stun:stun1.l.google.com:19302",
+              "stun:stun2.l.google.com:19302",
+              "stun:stun3.l.google.com:19302",
+              "stun:stun4.l.google.com:19302"
+            ]}]}, this.webrtcoptions);
+        console.log('Created peer connection', this.peerconnection);
+
+        let channels = this.channels;
+        let dataConstraint = {};
+
+        channels.domain = this.peerconnection.createDataChannel('domain_server_dc', dataConstraint);
+        channels.domain.addEventListener('message', (ev) => this.handleDomainPacket(ev));
+
+        channels.audio = this.peerconnection.createDataChannel('audio_mixer_dc', dataConstraint);
+        channels.audio.addEventListener('message', (ev) => this.handleAudioPacket(ev));
+
+        channels.avatar = this.peerconnection.createDataChannel('avatar_mixer_dc', dataConstraint);
+        channels.avatar.addEventListener('message', (ev) => this.handleAvatarPacket(ev));
+
+        channels.entity = this.peerconnection.createDataChannel('entity_server_dc', dataConstraint);
+        channels.entity.addEventListener('message', (ev) => this.handleEntityPacket(ev));
+
+        channels.entityscript = this.peerconnection.createDataChannel('entity_script_server_dc', dataConstraint);
+        channels.entityscript.addEventListener('message', (ev) => this.handleEntityScriptPacket(ev));
+
+        channels.message = this.peerconnection.createDataChannel('messages_mixer_dc', dataConstraint);
+        channels.message.addEventListener('message', (ev) => this.handleMessagePacket(ev));
+
+        channels.asset = this.peerconnection.createDataChannel('asset_server_dc', dataConstraint);
+        channels.asset.addEventListener('message', (ev) => this.handleAssetPacket(ev));
+
+        this.peerconnection.addEventListener('icecandidate', (ev) => this.handleICECandidate(ev));;
+        this.peerconnection.createOffer().then((desc) => this.handleSdpOffer(desc), null);
+
+        break;
+      default:
+        console.log("unknown websocket message type", msg);
+        break;
+    }
+  }
+
+  handleSdpOffer(desc) {
+    if (this.peerconnection) {
+      this.peerconnection.setLocalDescription(desc);
+      var msg ={
+        type: 'offer',
+        sdp: desc.sdp
+      };
+      console.log('Offer from PeerConnection \n', msg.sdp);
+
+      this.signalserver.send(JSON.stringify(msg));
+    }
+  }
+  handleICECandidate(event) {
+    if (event.candidate) {
+      var msg ={
+        type: 'candidate',
+        candidate: event.candidate
+      };
+      console.log('Send ICE candidate: \n' + event.candidate.candidate + '\n' + event.candidate.sdpMid + '\n' + event.candidate.sdpMLineIndex);
+      this.signalserver.send(JSON.stringify(msg));
+    }
+  }
+
+  getPacket(data, srcAddr, srcPort) {
+    let nlpacket = new this.packets.NLPacket();
+    nlpacket.read(data.data);
+//console.log(nlpacket, data.data);
+    let packet = new HifiPacket({srcAddr: srcAddr,segment: { srcPort: srcPort, payload: data.data} });
+    let dt = (new Date().getTime() - this.startTime) / 1000;
+    document.querySelector('hifi-packetlist').addPacket(packet, false, dt);
+//console.log('BEEP', nlpacket);
+    //this.packetdebugger.add(nlpacket);
+    return packet;
+  }
+  createPacket(packetType, args={}) {
+    let nlpacket = new this.packets.NLPacket({packetType: packetType});
+    let dt = (new Date().getTime() - this.startTime) / 1000;
+    if (this.packets[packetType]) {
+      let packet = new this.packets[packetType](args);
+      nlpacket.setPayload(packet);
+    } else {
+      console.warn('Unknown packet type:', packetType);
+    }
+    let packetel = new HifiPacket({segment: { payload: nlpacket.write()} });
+    document.querySelector('hifi-packetlist').addPacket(packetel, true, dt);
+    return nlpacket;
+  }
+
+  handleDomainPacket(data) {
+    let hifipacket = this.getPacket(data, 'janusvr', 'domain');
+    //console.log('domain packet!', data, hifipacket);
+    this.receiver.handlePacket(hifipacket);
+  }
+  handleAudioPacket(data) {
+    let hifipacket = this.getPacket(data, 'janusvr', 'audio');
+    //console.log('audio packet!', data, hifipacket);
+    this.receiver.handlePacket(hifipacket);
+  }
+  handleAvatarPacket(data) {
+    let hifipacket = this.getPacket(data, 'janusvr', 'avatar');
+    //console.log('avatar packet!', data, hifipacket);
+    this.receiver.handlePacket(hifipacket);
+  }
+  handleEntityPacket(data) {
+    let hifipacket = this.getPacket(data, 'janusvr', 'entity');
+    //console.log('entity packet!', data);
+    this.receiver.handlePacket(hifipacket);
+  }
+  handleEntityScriptPacket(data) {
+    let hifipacket = this.getPacket(data, 'janusvr', 'entityscript');
+    //console.log('entityscript packet!', data);
+    this.receiver.handlePacket(hifipacket);
+  }
+  handleMessagePacket(data) {
+    let hifipacket = this.getPacket(data, 'janusvr', 'message');
+    //console.log('message packet!', data);
+    this.receiver.handlePacket(hifipacket);
+  }
+  handleAssetPacket(data) {
+    let hifipacket = this.getPacket(data, 'janusvr', 'asset');
+    //console.log('asset packet!', data);
+    this.receiver.handlePacket(hifipacket);
+  }
+
+  /* Individual packet type handlers */
+  handleDomainList(packet) {
+    packet.parse({
+      domainUUID: 'Uint8[16]',
+      domainLocalID: 'Uint16',
+      newUUID: 'Uint8[16]',
+      newLocalID: 'Uint16',
+    }, packet.headerOffset);
+    console.log('handle DomainList', packet);
+
+  }
+  handleDomainConnectRequest(packet) {
+    console.log('handle DomainConnectRequest', data);
+  }
+  handleAudioPacketDecode(packet) {
+    //console.log('Received audio packet', packet, packet.isNonSourced(), packet.isNonVerified());
+  /*
+    let foo = parseBinaryData(packet._data, {
+      sequence: 'Uint16'
+    }, packet.headerOffset + 8, true);
+  */
+    let msg = packet.getMessage();
+    //hexdump(msg, 'Packet message');
+    //console.log(msg);
+    let boo = new BinaryReader(msg);
+    boo.littleEndian = true;
+
+    let seq = boo.read('Uint16', 0);
+    let strlen = boo.read('Uint32', 2);
+    let str = boo.readString(6, Math.min(strlen, boo._data.byteLength - 6));
+    let offset = 2 + 4 + strlen;
+    let data = boo.readArray('Uint8', offset, boo._data.byteLength - offset);
+    let pcmdata = pako.inflate(data, {to: 'arraybuffer'});
+    console.log('Received audio packet', seq, strlen, str, msg, pcmdata);
+  }
+};
+
+class HifiAvatar {
+  constructor() {
+    Object.defineProperties(this, {
+      position: { value: { x: 0, y: 0, z: 0 } }
+    });
+    this.sequenceId = 0;
+  }
+
+  toByteArray(dataDetail, lastSendTime) {
+    // https://github.com/highfidelity/hifi/blob/1cc2569bd85f27f44ac3767ae09aee3a3c5e082e/libraries/avatars/src/AvatarData.cpp#L238-L773
+
+
+    let avatardata = new hifipackets.AvatarData();
+
+    return avatardata.write();
+  }
+}
+
+
+/*
+receiver.registerListener(HifiPacketType.DomainList, (data) => {
+  console.log('handle DomainList', data);
+  
 });
-receiver.registerListener(HifiPacketType.STUNResponse, (data) => {
-  //console.log('handle STUNResponse', data);
-});
-receiver.registerListener(HifiPacketType.DomainConnectRequest, (data) => {
-  console.log('handle DomainConnectRequest', data);
-});
+*/
 
 /*
 receiver.registerListener(HifiPacketType.MicrophoneAudioNoEcho, (data) => {
@@ -259,29 +517,7 @@ receiver.registerListener(HifiPacketType.MicrophoneAudioNoEcho, (data) => {
 });
 */
 
-function handleAudioPacket(packet) {
-  console.log('Received audio packet', packet, packet.isNonSourced(), packet.isNonVerified());
-/*
-  let foo = parseBinaryData(packet._data, {
-    sequence: 'Uint16'
-  }, packet.headerOffset + 8, true);
-*/
-  let msg = packet.getMessage();
-  hexdump(msg, 'Packet message');
-  console.log(msg);
-  let boo = new BinaryReader(msg);
-  boo.littleEndian = true;
-
-  let seq = boo.read('Uint16', 0);
-  let strlen = boo.read('Uint32', 2);
-  let str = boo.readString(6, Math.min(strlen, boo._data.byteLength - 6));
-  console.log('Received audio packet', seq, strlen, str, msg);
-  let offset = 2 + 4 + strlen;
-  
-}
-
-receiver.registerListener(HifiPacketType.SilentAudioFrame, handleAudioPacket);
-receiver.registerListener(HifiPacketType.MixedAudio, handleAudioPacket);
+//receiver.registerListener(HifiPacketType.SilentAudioFrame, handleAudioPacket);
 
 class HifiPacketList extends HTMLElement {
   constructor() {
@@ -292,6 +528,7 @@ class HifiPacketList extends HTMLElement {
     let servers = {
       'stun': '54.67.22.242',
       'domain': '35.162.187.39',
+      //'domain': '66.70.245.202',
       'self': '192.168.42.248'
     };
     var packets = window.packets = [];
@@ -302,18 +539,14 @@ class HifiPacketList extends HTMLElement {
         let packet = r.frame.datagram;
         // FIXME - we're only looking at the conversation between the client and domain server right now, which means no ICE or STUN packets right now
         let ts = new pcap.PCAPTimestamp(r.ts_sec, r.ts_usec);
-console.log('diff', start.diff(ts), ts, start);
+//console.log('diff', start.diff(ts), ts, start);
         if (packet.dstAddr == servers.domain || packet.srcAddr == servers.domain) {
           try {
 setTimeout(() => {
             let hifipacket = new HifiPacket(packet);
             //console.log('the packet: ' + packet.srcAddr + ':' + packet.segment.srcPort + ' => ' + packet.dstAddr + ':' + packet.segment.dstPort, HifiPacketType.fromValue(hifipacket.packetType), hifipacket, packet);
-            packets.push(hifipacket);
-            receiver.handlePacket(hifipacket);
-
-            let packetel = document.createElement('hifi-packet');
-            packetel.setPacket(hifipacket, hifipacket.packet.srcAddr == servers.self);
-            this.appendChild(packetel);
+            this.addPacket(hifipacket);
+//console.log(hifipacket);
 }, 0);
           } catch (e) {
             console.warn('Failed to parse HifiPacket!', packet, e);
@@ -323,14 +556,32 @@ setTimeout(() => {
     });
 
   }
+  addPacket(packet, sendpacket, dt) {
+    //window.packets.push(packet);
+    //receiver.handlePacket(packet);
+
+    let packetel = document.createElement('hifi-packet');
+    packetel.setPacket(packet, sendpacket, dt);
+    if (this.childNodes.length > 500) {
+      this.removeChild(this.childNodes[0])
+    }
+console.log(this.scrollTop, this.scrollHeight, this.offsetHeight);
+    let atScrollTop = (this.scrollTop >= this.scrollHeight - this.offsetHeight - 150);
+    this.appendChild(packetel);
+    if (atScrollTop) {
+      this.scrollTop = this.scrollHeight;
+    }
+  }
 }
 class HifiPacketDebug extends HTMLElement {
-  setPacket(packet, sendpacket) {
+  setPacket(packet, sendpacket, dt) {
     let header = document.createElement('h3'),
         subheader = document.createElement('h4'),
         flags = document.createElement('ul'),
         hex = document.createElement('pre');
-    header.innerHTML = packet.getPacketType() + ' (' + packet.packetType + ') ' + 'seqid ' + packet.sequenceNumber;
+
+
+    header.innerHTML = packet.getPacketType() + ' (' + packet.packetType + ') ' + 'seqid ' + packet.sequenceNumber + '<span class="timestamp">' + dt + '</span>';
 
     if (sendpacket) {
       this.className = 'sending';
@@ -366,11 +617,27 @@ class HifiPacketDebug extends HTMLElement {
     this.appendChild(subheader);
     this.appendChild(hex);
 
+/*
+    if (packet.packetType == HifiPacketType.MixedAudio) {
+      let button = document.createElement('button');
+      button.innerHTML = 'play';
+      this.appendChild(button);
+      button.addEventListener('click', (ev) => {
+console.log('plurt', packet);
+      });
+    }
+*/
+
   }
 }
 customElements.define('hifi-packetlist', HifiPacketList);
 customElements.define('hifi-packet', HifiPacketDebug);
 
+
 let plist = document.createElement('hifi-packetlist');
-plist.load('data/hifi-packet-dump-pcm.pcap');
+//plist.load('data/hifi-packet-dump-zlib.pcap');
+//plist.load('data/hifi-packet-dump-pcm.pcap');
 document.body.appendChild(plist);
+
+window.hifiweb = new HifiWebClient();
+
