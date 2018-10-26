@@ -5,15 +5,24 @@ export class EthernetFrame extends BinaryReader {
   constructor(data, offset) {
     super(data, offset);
     this.headerLength = 14;
-    this.macaddrLength = 6;
     this.crcLength = 4;
     this.parse({
-      srcaddrBytes: 'Uint8[' + this.macaddrLength + ']',
-      dstaddrBytes: 'Uint8[' + this.macaddrLength + ']',
+      srcaddrBytes: 'Uint8[6]',
+      dstaddrBytes: 'Uint8[6]',
       ethertype: 'Uint16',
       payload: 'Uint8[' + (this._data.byteLength - this.headerLength - this.crcLength)+ ']',
       //checksum: 'Uint32'
     });
+/*
+    this.setHeaderSchema({
+      srcaddrBytes: 'Uint8[6]',
+      dstaddrBytes: 'Uint8[6]',
+      ethertype: 'Uint16'
+    });
+    this.setFooterSchema({
+      checksum: 'Uint32'
+    });
+*/
     this.srcaddr = this.parseMacAddress(this.srcaddrBytes);
     this.dstaddr = this.parseMacAddress(this.dstaddrBytes);
 //hexdump(this._data, 'EthernetFrame');

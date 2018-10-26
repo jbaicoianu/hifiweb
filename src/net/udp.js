@@ -10,6 +10,7 @@ export class UDPSegment extends BinaryReader {
       checksum: 'Uint16'
     });
 //console.log('UDP segment', this);
+    this.headerLength = 8;
     this.payload = this.readArray('Uint8', 8, this.length - 8);
   }
   getString() {

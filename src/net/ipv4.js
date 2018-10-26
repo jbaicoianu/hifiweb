@@ -33,11 +33,11 @@ export class IPv4Datagram extends BinaryReader {
     this.dstAddr = this.parseIPAddress(this.dstAddrBytes);
 
 //console.log('IP packet', this, this.length, this.headerWordCount * 4, this._data.length);
+    this.headerLength = this.headerWordCount * 4;
     if (SegmentTypes[this.proto]) {
-      let payloadStart = this.headerWordCount * 4;
       let payload = false;
       try {
-        payload = this.readArray('Uint8', payloadStart, Math.min(this._data.byteLength, this.length) - payloadStart);
+        payload = this.readArray('Uint8', this.headerLength, Math.min(this._data.byteLength, this.length) - this.headerLength);
         this.segment = new SegmentTypes[this.proto](payload);
       } catch (e) {
         console.warn('Failed to parse segment', this.proto, payload, this, e);
