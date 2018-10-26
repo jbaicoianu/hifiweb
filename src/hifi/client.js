@@ -3,9 +3,6 @@ import { HifiNode, NodeTypeMap } from './node.js';
 import { HifiAvatar } from './avatar.js';
 import * as hmac from '../hmac.js';
 
-console.log('hmac!', hmac);
-window.hmac = hmac;
-
 export class HifiClient {
   constructor() {
     this.nodes = {};
@@ -13,23 +10,10 @@ export class HifiClient {
     this.domain = 'hifi://janusvr';
 
     this.startTime = new Date().getTime();
-/*
-    let receiver = this.receiver = new PacketReceiver();
-    receiver.registerListener(HifiPacketType.ICEPing, (data) => {
-      //console.log('handle ping', data);
-    });
-    receiver.registerListener(HifiPacketType.STUNResponse, (data) => {
-      //console.log('handle STUNResponse', data);
-    });
-    receiver.registerListener(HifiPacketType.DomainConnectRequest, (data) => this.handleDomainConnectRequest(data));
-    receiver.registerListener(HifiPacketType.DomainList, (data) => this.handleDomainList(data));
-    receiver.registerListener(HifiPacketType.MixedAudio, (data) => this.handleAudioPacket(data));
-
+    /*
     this.packetdebugger = document.createElement('struct-viewer');
     document.body.appendChild(this.packetdebugger);
-
-    this.packets = hifipackets;
-*/
+    */
 
     this.avatar = new HifiAvatar();
 
@@ -104,36 +88,13 @@ export class HifiClient {
         console.log('Created peer connection', this.peerconnection);
 
         let nodes = this.nodes;
-/*
-        let dataConstraint = {};
-
-        channels.domain = this.peerconnection.createDataChannel('domain_server_dc', dataConstraint);
-        channels.domain.addEventListener('message', (ev) => this.handleDomainPacket(ev));
-
-        channels.audio = this.peerconnection.createDataChannel('audio_mixer_dc', dataConstraint);
-        channels.audio.addEventListener('message', (ev) => this.handleAudioPacket(ev));
-
-        channels.avatar = this.peerconnection.createDataChannel('avatar_mixer_dc', dataConstraint);
-        channels.avatar.addEventListener('message', (ev) => this.handleAvatarPacket(ev));
-
-        channels.entity = this.peerconnection.createDataChannel('entity_server_dc', dataConstraint);
-        channels.entity.addEventListener('message', (ev) => this.handleEntityPacket(ev));
-
-        channels.entityscript = this.peerconnection.createDataChannel('entity_script_server_dc', dataConstraint);
-        channels.entityscript.addEventListener('message', (ev) => this.handleEntityScriptPacket(ev));
-
-        channels.message = this.peerconnection.createDataChannel('messages_mixer_dc', dataConstraint);
-        channels.message.addEventListener('message', (ev) => this.handleMessagePacket(ev));
-
-        channels.asset = this.peerconnection.createDataChannel('asset_server_dc', dataConstraint);
-        channels.asset.addEventListener('message', (ev) => this.handleAssetPacket(ev));
-*/
 
         nodes.domain = new HifiNode('domain', this.peerconnection);
 
-        //nodes.domain.addEventListener('receive', (ev) => console.log('der', ev));
         nodes.domain.addPacketHandler('DomainList', (packet) => this.handleDomainList(packet));
 
+        // FIXME - we should create the HifiNode instances in the domain list handler, but right now
+        //         the relay waits for all 7 connections to be established before proceeding
         nodes.avatar = new HifiNode('avatar', this.peerconnection);
         nodes.audio = new HifiNode('audio', this.peerconnection);
         nodes.asset = new HifiNode('asset', this.peerconnection);
@@ -141,6 +102,7 @@ export class HifiClient {
         nodes.entityscript = new HifiNode('entityscript', this.peerconnection);
         nodes.message = new HifiNode('message', this.peerconnection);
 
+        // FIXME - ping handling should be handled by the nodes themselves, we're just doing one manually as a test for now
         nodes.avatar.addPacketHandler('Ping', (packet) => this.handlePing(packet));
         nodes.avatar.addPacketHandler('PingReply', (packet) => this.handlePingReply(packet));
 
