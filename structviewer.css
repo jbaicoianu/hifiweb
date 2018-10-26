@@ -1,0 +1,31 @@
+struct-view {
+  display: block;
+  display: flex;
+  flex-direction: row;
+  font-family: monospace;
+  border: 1px solid black;
+}
+
+struct-view>div {
+  padding: .5em;
+}
+struct-view span.segment {
+  outline: 1px solid black;
+}
+struct-view span.segment.selected {
+  outline: 2px solid red;
+}
+struct-view span.segment[title="ethernet"],
+struct-view span.segment[title="ethernetcrc"] {
+  background: rgba(255,0,0,.2);
+}
+struct-view span.segment[title="ipv4"] {
+  background: rgba(0,255,0,.2);
+}
+struct-view span.segment[title="udp"] {
+  background: rgba(0,0,255,.2);
+}
+struct-view span.segment[title="payload"] {
+  background: rgba(0,255,255,.2);
+}
+
