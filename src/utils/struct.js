@@ -161,7 +161,6 @@ export class Uint32_t extends ByteRange_t {
     super(4);
   }
   write(data, offset, value) {
-    //console.log('write it', data, offset, value);
     data.setUint32(offset, value, true);
   }
   read(data, offset) {
@@ -209,44 +208,52 @@ export class Uint64_t extends ByteRange_t {
   }
   write(data, offset, value) {
     let bigint = (typeof value == 'bigint');
-    let part1 = (bigint ? (value >> 32n) : (value >> 32)),
-        part2 = (bigint ? (value & 0xffffffffn) : (value & 0xffffffff));;
-    
-    data.setUint32(offset, Number(part1));
-    data.setUint32(offset + 4, Number(part2));
-/*
-    let part1 = value >> (bigint ? 56n : 56),
-        part2 = value >> (bigint ? 48n : 48),
-        part3 = value >> (bigint ? 40n : 40),
-        part4 = value >> (bigint ? 32n : 32),
-        part5 = value >> (bigint ? 24n : 24),
-        part6 = value >> (bigint ? 16n : 16),
-        part7 = value >> (bigint ? 8n : 8),
-        part8 = value >> (bigint ? 0n : 0);
-*/
+    let parts = (bigint ?
+      [
+        value >> 56n & 0xffn,
+        value >> 48n & 0xffn,
+        value >> 40n & 0xffn,
+        value >> 32n & 0xffn,
+        value >> 24n & 0xffn,
+        value >> 16n & 0xffn,
+        value >> 8n  & 0xffn,
+        value        & 0xffn
+      ] : [
+        value >> 56 & 0xff,
+        value >> 48 & 0xff,
+        value >> 40 & 0xff,
+        value >> 32 & 0xff,
+        value >> 24 & 0xff,
+        value >> 16 & 0xff,
+        value >> 8  & 0xff,
+        value       & 0xff
+      ]);
+
+    data.setUint8(offset, Number(parts[7]));
+    data.setUint8(offset + 1, Number(parts[6]));
+    data.setUint8(offset + 2, Number(parts[5]));
+    data.setUint8(offset + 3, Number(parts[4]));
+    data.setUint8(offset + 4, Number(parts[3]));
+    data.setUint8(offset + 5, Number(parts[2]));
+    data.setUint8(offset + 6, Number(parts[1]));
+    data.setUint8(offset + 7, Number(parts[0]));
   }
   read(data, offset) {
-    let part1 = BigInt(data.getUint32(offset)),
-        part2 = BigInt(data.getUint32(offset + 4));
-
-    return part1 << 32n | part2;
+    let parts = [];
+    for (let i = 0; i < 8; i++) {
+      parts[i] = data.getUint8(offset + i);
+    }
+    return BigInt(parts[0]) |
+           BigInt(parts[1]) << 8n |
+           BigInt(parts[2]) << 16n |
+           BigInt(parts[3]) << 24n |
+           BigInt(parts[4]) << 32n |
+           BigInt(parts[5]) << 40n |
+           BigInt(parts[6]) << 48n |
+           BigInt(parts[7]) << 56n;
   }
 };
-export class Int64_t extends ByteRange_t {
-  constructor(value) {
-    super(8);
-  }
-  write(data, offset, value) {
-    
-    console.log('TODO - implement Int64_t.write()', this);
-    data.setInt64(offset, value);
-  }
-  read(data, offset) {
-    let part1 = BigInt(data.getInt32(offset)),
-        part2 = BigInt(data.getInt32(offset + 4));
-
-    return part1 << 32n | part2;
-  }
+export class Int64_t extends Uint64_t {
 };
 export class Uint128_t extends ByteRange_t {
   constructor(value) {
@@ -297,7 +304,8 @@ export class Hex128_t extends ByteRange_t {
   read(data, offset) {
     let str = '';
     for (let i = 0; i < 16; i++) {
-      str += data.getUint8(offset + i).toString(16);
+      let hex = data.getUint8(offset + i).toString(16);
+      str += (hex.length == 1 ? '0' + hex : hex);
     }
 
     return str;
@@ -325,7 +333,7 @@ export class UUID_t extends ByteRange_t {
         part5 = data.getUint16(offset + 10),
         part6 = data.getUint32(offset + 12);
 
-    return part1.toString(16) + '-' + part2.toString(16) + '-' + part3.toString(16) + '-' + part4.toString(16) + '-' + part5.toString(16) + part6.toString(16);
+    return part1.toString(16) + '-' + part2.toString(16).padStart(4, '0') + '-' + part3.toString(16).padStart(4, '0') + '-' + part4.toString(16).padStart(4, '0') + '-' + part5.toString(16).padStart(4, '0') + part6.toString(16).padStart(8, '0');
   }
 };
 export class Float_t extends ByteRange_t {
