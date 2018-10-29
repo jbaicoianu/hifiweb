@@ -26,11 +26,14 @@ export function b64_hmac_md5(k, d)    { return rstr2b64(rstr_hmac_md5(str2rstr_u
 export function any_hmac_md5(k, d, e) { return rstr2any(rstr_hmac_md5(str2rstr_utf8(k), str2rstr_utf8(d)), e); }
 export function bin_md5(bin) {
   let s = new TextDecoder("utf-8").decode(bin);
-  return hex_md5(s);
+  //return hex_md5(s);
+  return rstr2hex(rstr_md5(s));
 }
 export function bin_hmac_md5(k, bin) {
   let d = new TextDecoder("utf-8").decode(bin);
-  return hex_hmac_md5(k, d);
+console.log('bin_hmac_md5()', str2rstr_utf8(k), str2rstr_utf8(d));
+  //return rstr2hex(rstr_hmac_md5(str2rstr_utf8(k), str2rstr_utf8(d)));
+  return rstr2hex(rstr_hmac_md5(k, d));
 }
 
 /*
@@ -386,16 +389,22 @@ function bit_rol(num, cnt)
 
 export class HMACAuth {
   calculateHash(data, offset, length) {
+console.log('hash it', this.authKey, data, offset);
     return bin_hmac_md5(this.authKey, data);
   }
   setKey(key) {
-    let binstr = '';
-console.log('========');
+console.log('========', key);
+/*
+    let arr = new Uint8Array(16),
+        idx = 0;
     for (let i = 0; i < key.length; i+= 2) {
 console.log(' - ', i, key.substring(i, i + 2));
-      binstr += String.fromCharCode(parseInt(key.substring(i, i+2), 16));
+      arr[idx++] = parseInt(key.substring(i, i+2), 16);
     }
-console.log('set key', key, binstr);
-    this.authKey = binstr;
+*/
+    let d = new TextDecoder("utf-8").decode(key);
+console.log('set key', key, d);
+    this.authKeyBytes = key;
+    this.authKey = d;
   }
 };
