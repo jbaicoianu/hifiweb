@@ -1,7 +1,6 @@
 import { PacketReceiver } from './packetreceiver.js';
 import { HifiNode, NodeTypeMap } from './node.js';
 import { HifiAvatar } from './avatar.js';
-import * as hmac from '../hmac.js';
 
 export class HifiClient {
   constructor() {
