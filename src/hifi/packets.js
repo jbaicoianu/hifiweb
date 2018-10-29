@@ -214,7 +214,7 @@ class NLPacket extends struct.define({
     }
   }
   get headerLength() {
-    return this.totalHeaderSize(); //super.size();
+    return NLPacket.totalHeaderSize(this.packetType, this.flags.message); //super.size();
   }
   get byteLength() {
     return this.headerLength + (this.payload ? this.payload.size() : 0);
@@ -242,6 +242,7 @@ class NLPacket extends struct.define({
       reliable: this.sequenceNumberAndBitField >> 30 & 1,
       message: this.sequenceNumberAndBitField >> 29 & 1,
     };
+    this.obfuscationlevel = this.sequenceNumberAndBitField >> 27 & 3;
 
     if (this.flags.message) {
       console.log('got a message packet');
@@ -254,38 +255,36 @@ class NLPacket extends struct.define({
       this.packetName = packetType;
       if (this.packetTypeClass) {
         this.setPayload(new this.packetTypeClass());
-        this.payload.read(data, offset + this.totalHeaderSize());
+        let payloadOffset = NLPacket.totalHeaderSize(this.packetType, this.flags.message);
+        let payloaddata = new Uint8Array(data, offset + payloadOffset, data.byteLength - offset - payloadOffset);//, this.payload.size());
+        //this.payload.read(data, offset + NLPacket.totalHeaderSize(this.packetType, this.flags.message));
+        this.payload.read(payloaddata.buffer, payloaddata.byteOffset);
 
         // Debug code - store a reference to the original underlying data so we can refer back to it to make sure the values are correct later
-        let payloaddata = new Uint8Array(data, offset + this.totalHeaderSize(), this.payload.size());
         //console.log('Packet serialization comparison:', payloaddata, new Uint8Array(this.payload.write()));
         this.payload.rawdata = payloaddata;
       }
     }
   }
-  totalHeaderSize() {
+  static totalHeaderSize(packetType, isMessage) {
     return 4 + // sizeof(this.sequenceNumberAndBitfield)
-           (this.flags.message ? 8 : 0) + // sizeof(messageNumber) + szeof(messagePartNumber), optional
-           this.localHeaderSize(); // localID + verifcation hash, optional
+           (isMessage ? 8 : 0) + // sizeof(messageNumber) + szeof(messagePartNumber), optional
+           NLPacket.localHeaderSize(packetType); // localID + verifcation hash, optional
   }
-  localHeaderSize() {
-    let nonSourced = this.isNonSourced(),
-        nonVerified = this.isNonVerified();
+  static localHeaderSize(packetType) {
+    let nonSourced = NonSourcedPackets.indexOf(packetType) != -1,
+        nonVerified = NonVerifiedPackets.indexOf(packetType) != -1;
     const NUM_BYTES_LOCALID = 2;
     const NUM_BYTES_MD5_HASH = 16;
-    let optionalSize = (nonSourced ? 0 : NUM_BYTES_LOCALID) + ((nonSourced || nonVerified) ? 0 : NUM_BYTES_MD5_HASH);
+    // sizeof(packetType) + sizeof(packetVersion) + extras
+    let optionalSize = 2 + (nonSourced ? 0 : NUM_BYTES_LOCALID) + ((nonSourced || nonVerified) ? 0 : NUM_BYTES_MD5_HASH);
+//console.log('OPTSIZE', optionalSize, nonSourced, nonVerified, this.packetType, NonVerifiedPackets);
     
     return optionalSize; 
   }
-  isNonSourced() {
-    return NonSourcedPackets.indexOf(this.packetType) == -1;
-  }
-  isNonVerified() {
-    return NonVerifiedPackets.indexOf(this.packetType) == -1;
-  }
   verify(hmac) {
     let data = this.payload.rawdata; //this.payload.write();
-    console.log(this.md5digest, data, hmac.calculateHash(data));
+    console.log(this.packetName, this.md5digest, hmac.calculateHash(data), hmac.calculateHash(new Uint8Array(this.payload.write())), this);
   }
 };
 
@@ -300,7 +299,8 @@ class HifiAddress extends struct.define({
 
 class Ping extends struct.define({
   pingType: new struct.Uint8_t,
-  time: new struct.Uint64_t
+  time: new struct.Uint64_t,
+  connectionid: new struct.Int64_t
 }) { };
 
 class PingReply extends struct.define({
@@ -325,7 +325,7 @@ class Node extends struct.define({
   permissions: new struct.Uint32BE_t,
   replicated: new struct.Boolean_t,
   sessionLocalID: new struct.Uint16BE_t,
-  connectionSecretUUID: new struct.Hex128_t,
+  connectionSecretUUID: new struct.UUID_t,
 }) { };
 class DomainList extends struct.define({
   domainUUID: new struct.UUID_t,
