@@ -60,3 +60,14 @@ hifi-packet .timestamp {
 .packetflags li.selected::before {
   background: green;
 }
+janus-ui-navigation janus-ui-statusindicator .inner canvas {
+  display: none;
+}
+janus-ui-navigation janus-ui-statusindicator .inner {
+  background: white;
+  margin: .5em;
+  border: 0;
+}
+janus-ui-navigation janus-ui-statusindicator .inner:after {
+  background: url(https://highfidelity.com/static-assets/main/logo-image-only-7ae724b98434583fe624a53bd63983094bb2ddda9976ca8d3e348b17c6955e59.svg);
+}
