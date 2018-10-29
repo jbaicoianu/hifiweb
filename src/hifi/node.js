@@ -1,6 +1,7 @@
 import * as packets from './packets.js';
 import {PacketReceiver} from './packetreceiver.js';
-import * as hmac from '../hmac.js';
+import * as hmac from '../utils/hmac.js';
+import * as uuid from '../utils/uuid.js';
 
 export const NodeTypeMap = {
   m: 'message',
@@ -104,12 +105,12 @@ console.log('made new node', this);
   handleNodePacket(data) {
     let packet = this.getPacketFromData(data, 'janusvr', this.type);
     //this.receiver.handlePacket(packet);
-console.log(this.type, packet);
+    //console.log(this.type, packet.packetName, packet);
     this.dispatchEvent(new CustomEvent('receive', { detail: packet }));
     if (packet.payload) {
-if (this.authhash) {
-  packet.verify(this.authhash)
-}
+      if (this.authhash) {
+        packet.verify(this.authhash)
+      }
       this.packetreceiver.handlePacket(packet.payload);
     }
   }
@@ -140,7 +141,7 @@ console.log('set node secret', secret, this);
     if (secret == this.connectionSecret) return;
     if (!this.authhash) this.authhash = new hmac.HMACAuth();
     this.connectionSecret = secret;
-    this.authhash.setKey(secret);
+    this.authhash.setKey(uuid.toRfc4122(secret));
   }
   
 };
