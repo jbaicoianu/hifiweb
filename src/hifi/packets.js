@@ -236,13 +236,14 @@ class NLPacket extends struct.define({
   read(data, offset=0) {
     super.read(data, offset);
 
-    this.sequenceNumber = this.sequenceNumberAndBitfield & 0x07FFFFF;
+    this.sequenceNumber = (this.sequenceNumberAndBitfield & 0x07FFFFFF) >>> 0;
     this.flags = {
-      control: this.sequenceNumberAndBitField >> 31 & 1,
-      reliable: this.sequenceNumberAndBitField >> 30 & 1,
-      message: this.sequenceNumberAndBitField >> 29 & 1,
+        control: (this.sequenceNumberAndBitfield & 0xFFFFFFFF) >>> 31 & 1,
+        reliable: (this.sequenceNumberAndBitfield & 0xFFFFFFFF) >>> 30 & 1,
+        message: (this.sequenceNumberAndBitfield & 0xFFFFFFFF) >>> 29 & 1,
     };
-    this.obfuscationlevel = this.sequenceNumberAndBitField >> 27 & 3;
+
+    this.obfuscationlevel = (this.sequenceNumberAndBitfield & 0xFFFFFFFF) >>> 27 & 3;
 
     if (this.flags.message) {
       console.log('got a message packet');
