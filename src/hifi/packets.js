@@ -2,6 +2,13 @@ import * as struct from '../utils/struct.js';
 import { Enum } from '../utils/enum.js';
 import { Flags } from '../utils/flags.js';
 
+var ObfuscationLevel = {
+  NoObfuscation: 0x0, // 00
+  ObfuscationL1: 0x1, // 01
+  ObfuscationL2: 0x2, // 10
+  ObfuscationL3: 0x3 // 11
+};
+
 const PacketType = new Enum([
   'Unknown',
   'StunResponse',
@@ -233,17 +240,21 @@ class NLPacket extends struct.define({
     }
     return fin;
   }
+
   read(data, offset=0) {
     super.read(data, offset);
 
     this.sequenceNumber = (this.sequenceNumberAndBitfield & 0x07FFFFFF) >>> 0;
     this.flags = {
-        control: (this.sequenceNumberAndBitfield & 0xFFFFFFFF) >>> 31 & 1,
-        reliable: (this.sequenceNumberAndBitfield & 0xFFFFFFFF) >>> 30 & 1,
-        message: (this.sequenceNumberAndBitfield & 0xFFFFFFFF) >>> 29 & 1,
+        control: this.sequenceNumberAndBitfield >>> 31 & 1,
+        reliable: this.sequenceNumberAndBitfield >>> 30 & 1,
+        message: this.sequenceNumberAndBitfield >>> 29 & 1,
     };
-
-    this.obfuscationlevel = (this.sequenceNumberAndBitfield & 0xFFFFFFFF) >>> 27 & 3;
+    this.obfuscationlevel = this.sequenceNumberAndBitfield >>> 27 & 3;
+    if (this.obfuscationlevel != ObfuscationLevel.NoObfuscation) {
+        //console.log("deobfuscating");
+        this.obfuscate(data,offset,ObfuscationLevel.NoObfuscation);
+    }
 
     if (this.flags.message) {
       console.log('got a message packet');
@@ -286,6 +297,44 @@ class NLPacket extends struct.define({
   verify(hmac) {
     let data = this.payload.rawdata; //this.payload.write();
     console.log(this.packetName, this.md5digest, hmac.calculateHash(data), hmac.calculateHash(new Uint8Array(this.payload.write())), this);
+  }
+  obfuscate(data,offset,obfuscationlevel) {
+    var KEYS = [[0x0, 0x0],
+        [0x63627269, 0x73736574],
+        [0x73626972, 0x61726461],
+        [0x72687566, 0x666d616e]];
+
+    var obfuscation_key =
+        [KEYS[this.obfuscationlevel][0] ^ KEYS[obfuscationlevel][0],
+        KEYS[this.obfuscationlevel][1] ^ KEYS[obfuscationlevel][1]]; // Undo old and apply new one.
+
+    if (obfuscation_key != 0) {
+        var obfuscateddata = new Uint8Array(data);
+        var unobfuscateddata = new Uint8Array(data.byteLength);
+
+        var j = 4 + ((this.flags.message == 1) ? 8 : 0);
+        var size = data.byteLength - j;
+
+        for (var k = 0; k < j; ++k) {
+          unobfuscateddata[k] = obfuscateddata[k];
+        }
+
+        for (var i = 0; i < size; ++i) {
+            var xorvalue;
+            if ((i % 8) >= 4) {
+              xorvalue = (((obfuscation_key[0]) >>> (8*((i % 8) - 4))) & 0xFF);
+            }
+            else {
+              xorvalue = (((obfuscation_key[1]) >>> (8*(i % 8))) & 0xFF);
+            }
+            unobfuscateddata[j] = (obfuscateddata[j] ^ xorvalue) >>> 0;
+            //console.log(obfuscateddata[j], unobfuscateddata[j], xorvalue);
+            ++j;
+        }
+        super.read(unobfuscateddata.buffer,offset);
+        this.obfuscationlevel = obfuscationlevel;
+        //console.log(this.sequenceNumber, this.flags.control, this.flags.reliable, this.flags.message, this.obfuscationlevel)
+    }
   }
 };
 
