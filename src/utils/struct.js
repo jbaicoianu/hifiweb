@@ -21,6 +21,9 @@ export class Struct {
     return size;
   }
   getData() {
+    if (!this._data) {
+      this._data = this.write();
+    }
     return this._data;
   }
   getValue() {
@@ -391,28 +394,25 @@ export class String_t extends ByteRange_t {
     }
   }
   size(value) {
-console.log('string length', value.length);
-    return value.length;
+    return value.length + 4;
   }
   write(data, offset, value) {
-    console.log('FIXME - implement String_t.write()');
-    let length = data.getUint16(offset, true),
-        bytes = new Uint8Array(length);
+    if (!offset) offset = 0;
+    if (typeof value != 'string') value = String(value);
+
+    console.log('FIXME - implement String_t.write()', value);
+    let length = value.length;
+    data.setUint32(offset, length);
     for (let i = 0; i < length; i++) {
-      bytes[i] = data.getUint8(offset + 2 + i);
+      data.setUint8(offset + 4 + i, value.charCodeAt(i));
     }
-    console.log(bytes);
-    return bytes;
   }
   read(data, offset, value) {
-console.log('DO IT', data, offset);
     let length = data.getUint32(offset, true);
-console.log('read string', length);
     let bytes = new Uint8Array(length);
     for (let i = 0; i < length; i++) {
       bytes[i] = data.getUint8(offset + 4 + i);
     }
-    console.log('read string', bytes);
     return new TextDecoder("utf-8").decode(bytes);
   }
 };
@@ -428,7 +428,7 @@ export class StructList_t {
     let size = 0;
     if (value) {
       for (let i = 0; i < value.length; i++) {
-        size += value[i].size();
+        size += (typeof value[i] == 'string' ? value[i].length + 4 : value[i].size());
       }
     }
     return size;

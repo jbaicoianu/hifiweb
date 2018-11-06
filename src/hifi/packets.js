@@ -2,6 +2,16 @@ import * as struct from '../utils/struct.js';
 import { Enum } from '../utils/enum.js';
 import { Flags } from '../utils/flags.js';
 
+const DefaultPacketVersion = 22;
+
+var ObfuscationLevel = {
+  NoObfuscation: 0x0, // 00
+  ObfuscationL1: 0x1, // 01
+  ObfuscationL2: 0x2, // 10
+  ObfuscationL3: 0x3 // 11
+};
+
+
 const PacketType = new Enum([
   'Unknown',
   'StunResponse',
@@ -191,11 +201,11 @@ const NonSourcedPackets = [
 
 class NLPacket extends struct.define({
   sequenceNumberAndBitfield: new struct.Uint32_t,
-
+  //messageHeader: new struct.Struct_t, // optional, only if message header is set
   packetType: new struct.Uint8_t,
   version: new struct.Uint8_t,
   localNodeID: new struct.Uint16_t,
-  md5digest: new struct.Hex128_t,
+  hmac: new struct.Hex128_t,
   //payload: new struct.Struct_t
 }) {
   constructor(args) {
@@ -227,26 +237,54 @@ class NLPacket extends struct.define({
       data = new ArrayBuffer(this.headerLength + this.payload.size());
       offset = 0;
     }
+    this.sequenceNumberAndBitfield =
+      this.flags.control << 31 |
+      this.flags.reliable << 30 |
+      this.flags.message << 29 |
+      this.flags.obfuscationlevel << 27 |
+      this.sequenceNumber;
+
     let fin = super.write(data, offset);
     if (this.payload) {
       this.payload.write(fin, this.headerLength);
     }
     return fin;
   }
+
   read(data, offset=0) {
-    super.read(data, offset);
+    //super.read(data, offset);
+    let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
+    this.sequenceNumberAndBitfield = buf.getUint32(0);
+    let headerOffset = 4;
 
-    this.sequenceNumber = this.sequenceNumberAndBitfield & 0x07FFFFF;
+    this.sequenceNumber = (this.sequenceNumberAndBitfield & 0x07FFFFFF) >>> 0;
     this.flags = {
-      control: this.sequenceNumberAndBitField >> 31 & 1,
-      reliable: this.sequenceNumberAndBitField >> 30 & 1,
-      message: this.sequenceNumberAndBitField >> 29 & 1,
+        control: this.sequenceNumberAndBitfield >>> 31 & 1,
+        reliable: this.sequenceNumberAndBitfield >>> 30 & 1,
+        message: this.sequenceNumberAndBitfield >>> 29 & 1,
     };
-    this.obfuscationlevel = this.sequenceNumberAndBitField >> 27 & 3;
-
-    if (this.flags.message) {
-      console.log('got a message packet');
+    this.obfuscationlevel = this.sequenceNumberAndBitfield >>> 27 & 3;
+    if (this.obfuscationlevel != ObfuscationLevel.NoObfuscation) {
+        //console.log("deobfuscating");
+        this.obfuscate(data,offset,ObfuscationLevel.NoObfuscation);
     }
+
+    if (this.flags.reliable) {
+      //console.log('got a reliable packet', this);
+    }
+    if (this.flags.message) {
+      //console.log('got a message packet', this);
+      this.messageNumber = buf.getUint32(headerOffset);
+      this.messagePartNumber = buf.getUint32(headerOffset + 4);
+      headerOffset += 8;
+    }
+
+    this.packetType = buf.getUint8(headerOffset);
+    this.version = buf.getUint8(headerOffset + 1);
+    this.localNodeID = buf.getUint16(headerOffset + 1);
+
+    //hmac: new struct.Hex128_t,
+    // FIXME - need to read HMAC string for packet verification
 
     if (!isNaN(this.packetType) && isFinite(this.packetType)) {
       let packetType = PacketType.fromValue(this.packetType);
@@ -269,7 +307,7 @@ class NLPacket extends struct.define({
   static totalHeaderSize(packetType, isMessage) {
     return 4 + // sizeof(this.sequenceNumberAndBitfield)
            (isMessage ? 8 : 0) + // sizeof(messageNumber) + szeof(messagePartNumber), optional
-           NLPacket.localHeaderSize(packetType); // localID + verifcation hash, optional
+           NLPacket.localHeaderSize(packetType); // sourceID + verification hash, optional
   }
   static localHeaderSize(packetType) {
     let nonSourced = NonSourcedPackets.indexOf(packetType) != -1,
@@ -282,9 +320,62 @@ class NLPacket extends struct.define({
     
     return optionalSize; 
   }
+  static fromReceivedPacket(data) {
+    let nlpacket = new NLPacket();
+    nlpacket.read(data);
+    return nlpacket;
+  }
   verify(hmac) {
-    let data = this.payload.rawdata; //this.payload.write();
-    console.log(this.packetName, this.md5digest, hmac.calculateHash(data), hmac.calculateHash(new Uint8Array(this.payload.write())), this);
+    //let data = this.payload.rawdata; //this.payload.write();
+    let computedhash = hmac.calculateHash(new Uint8Array(this.payload.getData()));
+    //console.log(this.packetName, this.hmac, computedhash, hmac.calculateHash(new Uint8Array(this.payload.write())), this);
+    return computedhash == this.hmac;
+  }
+  writeVerificationHash(hmac) {
+    let newhash = hmac.calculateHash(new Uint8Array(this.payload.getData()));
+    this.hmac = newhash;
+    return newhash;
+  }
+  isReliable() {
+    return this.flags.reliable;
+  }
+  obfuscate(data,offset,obfuscationlevel) {
+    var KEYS = [[0x0, 0x0],
+        [0x63627269, 0x73736574],
+        [0x73626972, 0x61726461],
+        [0x72687566, 0x666d616e]];
+
+    var obfuscation_key =
+        [KEYS[this.obfuscationlevel][0] ^ KEYS[obfuscationlevel][0],
+        KEYS[this.obfuscationlevel][1] ^ KEYS[obfuscationlevel][1]]; // Undo old and apply new one.
+
+    if (obfuscation_key != 0) {
+        var obfuscateddata = new Uint8Array(data);
+        var unobfuscateddata = new Uint8Array(data.byteLength);
+
+        var j = 4 + ((this.flags.message == 1) ? 8 : 0);
+        var size = data.byteLength - j;
+
+        for (var k = 0; k < j; ++k) {
+          unobfuscateddata[k] = obfuscateddata[k];
+        }
+
+        for (var i = 0; i < size; ++i) {
+            var xorvalue;
+            if ((i % 8) >= 4) {
+              xorvalue = (((obfuscation_key[0]) >>> (8*((i % 8) - 4))) & 0xFF);
+            }
+            else {
+              xorvalue = (((obfuscation_key[1]) >>> (8*(i % 8))) & 0xFF);
+            }
+            unobfuscateddata[j] = (obfuscateddata[j] ^ xorvalue) >>> 0;
+            //console.log(obfuscateddata[j], unobfuscateddata[j], xorvalue);
+            ++j;
+        }
+        super.read(unobfuscateddata.buffer,offset);
+        this.obfuscationlevel = obfuscationlevel;
+        //console.log(this.sequenceNumber, this.flags.control, this.flags.reliable, this.flags.message, this.obfuscationlevel)
+    }
   }
 };
 
@@ -301,13 +392,44 @@ class Ping extends struct.define({
   pingType: new struct.Uint8_t,
   time: new struct.Uint64_t,
   connectionid: new struct.Int64_t
-}) { };
+}) {
+  static version() { return 18; }
+};
 
 class PingReply extends struct.define({
   pingType: new struct.Uint8_t,
   pingTime: new struct.Uint64_t,
   time: new struct.Uint64_t
-}) { };
+}) {
+};
+class NegotiateAudioFormat extends struct.define({
+  numberOfCodecs: new struct.Uint8_t,
+  codecs: new struct.StructList_t
+}) {
+  size() {
+    let len = 1;
+    for (let i = 0; i < this.codecs.length; i++) {
+      len += this.codecs[i].length + 4;
+    }
+    return len;
+  }
+  write(data, offset) {
+    if (!data) {
+      data = new ArrayBuffer(this.size());
+      offset = 0;
+    }
+    let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
+    buf.setUint8(0, this.numberOfCodecs);
+    let idx = 1;
+console.log('write codecs', this.codecs);
+    for (let i = 0; i < this.numberOfCodecs; i++) {
+      let str = new struct.String_t();
+      str.write(buf, idx, this.codecs[i]);
+      idx += str.size(this.codecs[i]);
+console.log(' - ', str, this.codecs[i], idx);
+    }
+  }
+};
 class SelectedAudioFormat extends struct.define({
   codec: new struct.String_t,
 }) { };
@@ -329,17 +451,16 @@ class Node extends struct.define({
 }) { };
 class DomainList extends struct.define({
   domainUUID: new struct.UUID_t,
-  domainLocalID: new struct.Uint16_t,
+  domainLocalID: new struct.Uint16BE_t,
   sessionUUID: new struct.UUID_t,
-  localID: new struct.Uint16_t,
-  permissions: new struct.Uint32_t,
+  sessionLocalID: new struct.Uint16BE_t,
+  permissions: new struct.Uint32BE_t,
   authenticated: new struct.Boolean_t,
   nodes: new struct.StructList_t()
 }) { 
   read(data, offset) {
     let d = super.read(data, offset);
     if (!offset) offset = 0;
-//console.log('READ DOMAINLIST', d, data, offset, this);
 
     let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
 
@@ -381,7 +502,15 @@ class AvatarData extends struct.define({
   hasFlags: new struct.Uint16_t,
   updates: new struct.StructList_t
 }) {
+  static version() { return 44; }
+  read(data, offset) {
+    let buf = super.read(data, offset);
+
+    console.log('read the avatar updates', this.hasFlags, buf);
+  }
   updateFromAvatar(avatar) {
+    // https://github.com/highfidelity/hifi/blob/master/libraries/avatars/src/AvatarData.cpp#L239-L822
+    // https://github.com/highfidelity/hifi/blob/master/libraries/avatars/src/AvatarData.h#L120-L297
     this.updates = [];
     this.sequenceId = avatar.sequenceId++;
 
@@ -396,6 +525,7 @@ class AvatarData extends struct.define({
       globalpos.globalPositionZ = avatar.position.z;
       this.updates.push(globalpos);
     }
+    this.hasFlags = hasFlags;
   }  
 };
 
@@ -405,14 +535,57 @@ class AvatarGlobalPosition extends struct.define({
   globalPositionZ: new struct.Float_t
 }) { };
 
+class AvatarIdentity extends struct.define({
+  avatarSessionUUID: new struct.UUID_t,
+  identitySequenceNumber: new struct.Uint32_t,
+  attachmentData: new struct.StructList_t,
+  displayName: new struct.String_t,
+  sessionDisplayName: new struct.String_t,
+  isReplicated: new struct.Boolean_t,
+  lookAtSnappingEnabled: new struct.Boolean_t
+}) {
+  static version() { return 44; }
+};
+
+class BulkAvatarData extends struct.define({
+  avatars: new struct.StructList_t,
+}) {
+  read(data, offset) {
+console.log('read bulk avatar!');
+    let idx = 0;
+    while (idx < data.byteLength - offset) {
+      let avatar = this.readAvatar(data, offset + idx);
+      idx += avatar.size();
+      break; // FIXME - just do one avatar for now, until we get AvatarData packet parsing nailed down
+    }
+  }
+  readAvatar(data, offset) {
+    let avatar = new AvatarData();
+    avatar.read(data, offset);
+console.log(' - avatar data', avatar, offset);
+    return avatar;
+  }
+};
+
 var PacketTypeDefs = {
   NLPacket: NLPacket,
   Ping: Ping,
   PingReply: PingReply,
+  NegotiateAudioFormat: NegotiateAudioFormat,
   SelectedAudioFormat: SelectedAudioFormat,
   DomainList: DomainList,
+  AvatarIdentity: AvatarIdentity,
   AvatarData: AvatarData,
+  BulkAvatarData: BulkAvatarData,
 };
+
+export function versionForPacketType(packetType) {
+  let version = DefaultPacketVersion;
+  if (PacketTypeDefs[packetType] && typeof PacketTypeDefs[packetType].version == 'function') {
+    version = PacketTypeDefs[packetType].version()
+  }
+  return version;
+}
 
 export {
   PacketType,
@@ -420,9 +593,12 @@ export {
   NLPacket,
   Ping,
   PingReply,
+  NegotiateAudioFormat,
   SelectedAudioFormat,
   DomainList,
+  AvatarIdentity,
   AvatarDataHasFlags,
   AvatarData,
-  AvatarGlobalPosition
+  AvatarGlobalPosition,
+  BulkAvatarData,
 };
