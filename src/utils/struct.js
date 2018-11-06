@@ -21,6 +21,9 @@ export class Struct {
     return size;
   }
   getData() {
+    if (!this._data) {
+      this._data = this.write();
+    }
     return this._data;
   }
   getValue() {
