@@ -2,8 +2,10 @@ import { PacketReceiver } from './packetreceiver.js';
 import { HifiNode, NodeTypeMap } from './node.js';
 import { HifiAvatar } from './avatar.js';
 
-export class HifiClient {
+class HifiClient extends EventTarget {
   constructor() {
+    super();
+
     this.nodes = {};
     this.relayserver = 'ws://hifi.janusvr.com:8118';
     this.domain = 'hifi://janusvr';
@@ -172,3 +174,6 @@ console.log('update node', n, node);
   }
 };
 
+export {
+  HifiClient
+};
