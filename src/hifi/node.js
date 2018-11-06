@@ -1,5 +1,6 @@
 import * as packets from './packets.js';
-import {PacketReceiver} from './packetreceiver.js';
+import { ControlPacket } from './controlpacket.js';
+import { PacketReceiver } from './packetreceiver.js';
 import * as hmac from '../utils/hmac.js';
 import * as uuid from '../utils/uuid.js';
 
@@ -47,8 +48,8 @@ export class HifiNode extends EventTarget {
     this.uuid = null;
     this.permissions = null;
     this.isReplicated = false;
-    this.localID = null;
-    this.clientLocalID = null;
+    //this.localID = null;
+    //this.clientLocalID = null;
 
     this.connectionSecret = null;
 
@@ -59,7 +60,21 @@ export class HifiNode extends EventTarget {
 
     this.publicSocket = peerconnection.createDataChannel(channelnames[this.type], dataConstraint);
     this.publicSocket.addEventListener('message', (ev) => this.handleNodePacket(ev));
+
+    this.addPacketHandler('Ping', (packet) => this.handlePing(packet));
+    this.addPacketHandler('PingReply', (packet) => this.handlePingReply(packet));
 console.log('made new node', this);
+
+    // TODO - these should really be in a separate Connection class
+    this.lastReceivedSequenceNumber = -1;
+    this.lossList = [];
+    this.hasReceivedHandshake= false;
+    this.ackPacket = ControlPacket.create(ControlPacket.types.ACK);
+
+    //this.startPingTimer();
+  }
+  close() {
+    this.publicSocket.close();
   }
   updateNode(node, domainSessionLocalID) {
     this.uuid = node.uuid;
@@ -68,7 +83,7 @@ console.log('made new node', this);
     this.setConnectionSecret(node.connectionSecretUUID);
   }
   createPacket(type, args={}) {
-    console.log('create packet', type, args, this);
+    //console.log('create packet', type, args, this);
     let nlpacket = new packets.NLPacket({
       packetType: type,
       version: this.getVersionForType(type),
@@ -86,21 +101,130 @@ console.log('made new node', this);
     return 1;
   }
   getPacketFromData(data, srcAddr, srcPort) {
-    let nlpacket = new packets.NLPacket();
-    nlpacket.read(data.data);
-//console.log(nlpacket, data.data);
+    let isControlPacket = false;
+/*
+    // TODO - handle control packets https://github.com/highfidelity/hifi/blob/061f86e550be711ce49a12ec9cb05ae757851169/libraries/networking/src/udt/Socket.cpp#L373-L383
+
+    let arr = data.data;
+    let firstUint32 = arr[0] << 24 | arr[1] << 16 | arr[2] << 8 | arr[3];
+    let isControlPacket = & CONTROL_BIT_MASK;
+*/
+
+    // https://github.com/highfidelity/hifi/blob/061f86e550be711ce49a12ec9cb05ae757851169/libraries/networking/src/udt/Socket.cpp#L370-L421
+    if (isControlPacket) {
+    } else {
+    //let nlpacket = new packets.NLPacket();
+    //nlpacket.read(data.data);
+
+    //console.log(nlpacket, data.data);
     //let packet = new HifiPacket({srcAddr: srcAddr,segment: { srcPort: srcPort, payload: data.data} });
     //let dt = (new Date().getTime() - this.startTime) / 1000;
     //document.querySelector('hifi-packetlist').addPacket(packet, false, dt);
 //console.log('BEEP', nlpacket);
     //this.packetdebugger.add(nlpacket);
-    return nlpacket;
+      let packet = packets.NLPacket.fromReceivedPacket(data.data);
+      if (packet.obfuscationlevel == 0) {
+        this.lastReceivedSequenceNumber = packet.sequenceNumber;
+      }
+      if (packet.isReliable()) {
+        // TODO - the following function sends ACKs, implement it!
+        // https://github.com/highfidelity/hifi/blob/25be635b763506e4a184bc363f5f7c5a6c0f1c78/libraries/networking/src/udt/Connection.cpp#L233-L279
+        this.processReceivedSequenceNumber(packet.sequenceNumber);
+      }
+
+      return packet;
+    }
+  }
+  processReceivedSequenceNumber(sequenceNumber, packetSize, payloadSize) {
+    // Based on https://github.com/highfidelity/hifi/blob/25be635b763506e4a184bc363f5f7c5a6c0f1c78/libraries/networking/src/udt/Connection.cpp#L233
+/* 
+// TODO - relay is handling handshakes right now, but client will handle them soon
+    if (!this.hasReceivedHandshake) {
+      // Refuse to process any packets until we've received the handshake
+      this.sendHandshakeRequest();
+      return false;
+    }
+*/
+
+    // mark our last receive time as now (to push the potential expiry farther)
+    this.lastReceiveTime = performance.now();
+
+    // If this is not the next sequence number, report loss
+    if (sequenceNumber > this.lastReceivedSequenceNumber + 1) {
+      // note from bai: this seems like strange logic to me. If we skipped only one sequenceNumber, we report that one as having been lost
+      // But if we skipped more than one sequenceNumber, we report the first and last as being lost, but not the ones in the middle?
+      if (this.lastReceivedSequenceNumber + 1 == sequenceNumber - 1) {
+        this.lossList.push(this.lastReceivedSequenceNumber + 1);
+      } else {
+        this.lossList.push(this.lastReceivedSequenceNumber + 1, sequenceNumber - 1);
+      }
+    }
+
+    let wasDuplicate = false;
+    if (sequenceNumber > this.lastReceivedSequenceNumber) {
+      // Update largest recieved sequence number
+      this.lastReceivedSequenceNumber = sequenceNumber;
+    } else {
+      // Otherwise, it could be a resend, try and remove it from the loss list
+      let lossidx = this.lossList.indexOf(sequenceNumber);
+      if (lossidx != -1) {
+        this.lossList.splice(lossidx, 1);
+      } else {
+        wasDuplicate = true;
+      }
+    }
+
+    // using a congestion control that ACKs every packet (like TCP Vegas)
+    this.sendACK();
+
+    if (wasDuplicate) {
+      //this.stats.record(ConnectionStats::Stats::Duplicate);
+    } else {
+      //this.stats.recordReceivedPackets(payloadSize, packetSize);
+    }
+
+    return !wasDuplicate;
+  }
+  sendHandshakeRequest() {
+    let handshakeRequestPacket = ControlPacket.create(ControlPacket.types.HandshakeRequest, 0);
+    this.writeBasePacket(handshakeRequestPacket);
+
+    this.didRequestHandshake = true;
+  }
+  sendACK() {
+    let nextACKNumber = this.nextACK();
+
+    // we have received new packets since the last sent ACK
+    // or our congestion control dictates that we always send ACKs
+
+    //this.ackPacket.reset(); // We need to reset it every time.
+
+    // Pack in the ACK number
+    this.ackPacket.sequenceNumber = nextACKNumber;
+console.log('send ack!', nextACKNumber, this.ackPacket);
+    this.writeBasePacket(this.ackPacket);
+
+    //this.stats.record(ConnectionStats::Stats::SentACK);
+  }
+  nextACK() {
+    if (this.lossList.length > 0) {
+      return this.lossList[0] - 1;
+    } else {
+      return this.lastReceivedSequenceNumber;
+    }
   }
   sendPacket(packet) {
     packet.sequenceNumber = this.sequenceNumber++;
-    console.log('send packet', this.type, packet.sequenceNumber, packet, this);
-    this.publicSocket.send(packet.write());
+    packet.version = packets.versionForPacketType(packet.packetName);
+    //console.log('send packet', this.type, packet.sequenceNumber, packet, this);
+    if (this.authhash) {
+      packet.writeVerificationHash(this.authhash);
+    }
+    this.writeBasePacket(packet);
     this.dispatchEvent(new CustomEvent('send', { detail: packet }));
+  }
+  writeBasePacket(packet) {
+    this.publicSocket.send(packet.write());
   }
   handleNodePacket(data) {
     let packet = this.getPacketFromData(data, 'janusvr', this.type);
@@ -111,20 +235,27 @@ console.log('made new node', this);
       if (this.authhash) {
         packet.verify(this.authhash)
       }
-      this.packetreceiver.handlePacket(packet.payload);
+      this.packetreceiver.handlePacket(packet);
     }
   }
   startPingTimer() {
     if (!this.pingTimer) {
-      this.pingTimer = setInterval(this.sendPing, 1000);
+      this.pingTimer = setInterval(() => this.sendPing(), 1000);
     }
   }
   sendPing() {
     let now = new Date().getTime();
-    console.log('send ping', now);
     let ping = this.createPacket('Ping', { time: now });
-    console.log(' - ', ping);
     this.sendPacket(ping);
+  }
+  sendPingReply(ping) {
+    let now = new Date().getTime() * 1000;
+    let pingreply = this.createPacket('PingReply', {
+      pingType: ping.pingType,
+      pingTime: ping.time,
+      time: now
+    });
+    this.sendPacket(pingreply);
   }
   stopPingTimer() {
     if (this.pingTimer) {
@@ -133,15 +264,29 @@ console.log('made new node', this);
     }
   }
   addPacketHandler(type, callback) {
-console.log('add handler', type, packets.PacketType.fromValue(type));
-    this.packetreceiver.registerListener(packets.PacketType.fromValue(type), callback);
+console.log('add handler', type, packets.PacketType[type]);
+    this.packetreceiver.registerListener(packets.PacketType[type], callback);
   }
   setConnectionSecret(secret) {
-console.log('set node secret', secret, this);
     if (secret == this.connectionSecret) return;
     if (!this.authhash) this.authhash = new hmac.HMACAuth();
     this.connectionSecret = secret;
     this.authhash.setKey(uuid.toRfc4122(secret));
   }
+  getUUID() {
+    return this.uuid;
+  }
+  handlePing(packet) {
+//console.log('ping!', packet);
+    this.sendPingReply(packet);
+  }
+  isConnected() {
+    return this.publicSocket.readyState == 'open';
+  }
+  handlePingReply(packet) {
+//console.log('pingreply!', packet);
+  }
   
 };
+
+HifiNode.NULL_LOCAL_ID = 0;
