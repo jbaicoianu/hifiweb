@@ -2,6 +2,8 @@ import * as struct from '../utils/struct.js';
 import { Enum } from '../utils/enum.js';
 import { Flags } from '../utils/flags.js';
 
+const DefaultPacketVersion = 22;
+
 const PacketType = new Enum([
   'Unknown',
   'StunResponse',
@@ -339,13 +341,44 @@ class Ping extends struct.define({
   pingType: new struct.Uint8_t,
   time: new struct.Uint64_t,
   connectionid: new struct.Int64_t
-}) { };
+}) {
+  static version() { return 18; }
+};
 
 class PingReply extends struct.define({
   pingType: new struct.Uint8_t,
   pingTime: new struct.Uint64_t,
   time: new struct.Uint64_t
-}) { };
+}) {
+};
+class NegotiateAudioFormat extends struct.define({
+  numberOfCodecs: new struct.Uint8_t,
+  codecs: new struct.StructList_t
+}) {
+  size() {
+    let len = 1;
+    for (let i = 0; i < this.codecs.length; i++) {
+      len += this.codecs[i].length + 4;
+    }
+    return len;
+  }
+  write(data, offset) {
+    if (!data) {
+      data = new ArrayBuffer(this.size());
+      offset = 0;
+    }
+    let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
+    buf.setUint8(0, this.numberOfCodecs);
+    let idx = 1;
+console.log('write codecs', this.codecs);
+    for (let i = 0; i < this.numberOfCodecs; i++) {
+      let str = new struct.String_t();
+      str.write(buf, idx, this.codecs[i]);
+      idx += str.size(this.codecs[i]);
+console.log(' - ', str, this.codecs[i], idx);
+    }
+  }
+};
 class SelectedAudioFormat extends struct.define({
   codec: new struct.String_t,
 }) { };
@@ -367,17 +400,16 @@ class Node extends struct.define({
 }) { };
 class DomainList extends struct.define({
   domainUUID: new struct.UUID_t,
-  domainLocalID: new struct.Uint16_t,
+  domainLocalID: new struct.Uint16BE_t,
   sessionUUID: new struct.UUID_t,
-  localID: new struct.Uint16_t,
-  permissions: new struct.Uint32_t,
+  sessionLocalID: new struct.Uint16BE_t,
+  permissions: new struct.Uint32BE_t,
   authenticated: new struct.Boolean_t,
   nodes: new struct.StructList_t()
 }) { 
   read(data, offset) {
     let d = super.read(data, offset);
     if (!offset) offset = 0;
-//console.log('READ DOMAINLIST', d, data, offset, this);
 
     let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
 
@@ -419,7 +451,15 @@ class AvatarData extends struct.define({
   hasFlags: new struct.Uint16_t,
   updates: new struct.StructList_t
 }) {
+  static version() { return 44; }
+  read(data, offset) {
+    let buf = super.read(data, offset);
+
+    console.log('read the avatar updates', this.hasFlags, buf);
+  }
   updateFromAvatar(avatar) {
+    // https://github.com/highfidelity/hifi/blob/master/libraries/avatars/src/AvatarData.cpp#L239-L822
+    // https://github.com/highfidelity/hifi/blob/master/libraries/avatars/src/AvatarData.h#L120-L297
     this.updates = [];
     this.sequenceId = avatar.sequenceId++;
 
@@ -434,6 +474,7 @@ class AvatarData extends struct.define({
       globalpos.globalPositionZ = avatar.position.z;
       this.updates.push(globalpos);
     }
+    this.hasFlags = hasFlags;
   }  
 };
 
@@ -443,14 +484,57 @@ class AvatarGlobalPosition extends struct.define({
   globalPositionZ: new struct.Float_t
 }) { };
 
+class AvatarIdentity extends struct.define({
+  avatarSessionUUID: new struct.UUID_t,
+  identitySequenceNumber: new struct.Uint32_t,
+  attachmentData: new struct.StructList_t,
+  displayName: new struct.String_t,
+  sessionDisplayName: new struct.String_t,
+  isReplicated: new struct.Boolean_t,
+  lookAtSnappingEnabled: new struct.Boolean_t
+}) {
+  static version() { return 44; }
+};
+
+class BulkAvatarData extends struct.define({
+  avatars: new struct.StructList_t,
+}) {
+  read(data, offset) {
+console.log('read bulk avatar!');
+    let idx = 0;
+    while (idx < data.byteLength - offset) {
+      let avatar = this.readAvatar(data, offset + idx);
+      idx += avatar.size();
+      break; // FIXME - just do one avatar for now, until we get AvatarData packet parsing nailed down
+    }
+  }
+  readAvatar(data, offset) {
+    let avatar = new AvatarData();
+    avatar.read(data, offset);
+console.log(' - avatar data', avatar, offset);
+    return avatar;
+  }
+};
+
 var PacketTypeDefs = {
   NLPacket: NLPacket,
   Ping: Ping,
   PingReply: PingReply,
+  NegotiateAudioFormat: NegotiateAudioFormat,
   SelectedAudioFormat: SelectedAudioFormat,
   DomainList: DomainList,
+  AvatarIdentity: AvatarIdentity,
   AvatarData: AvatarData,
+  BulkAvatarData: BulkAvatarData,
 };
+
+export function versionForPacketType(packetType) {
+  let version = DefaultPacketVersion;
+  if (PacketTypeDefs[packetType] && typeof PacketTypeDefs[packetType].version == 'function') {
+    version = PacketTypeDefs[packetType].version()
+  }
+  return version;
+}
 
 export {
   PacketType,
@@ -458,9 +542,12 @@ export {
   NLPacket,
   Ping,
   PingReply,
+  NegotiateAudioFormat,
   SelectedAudioFormat,
   DomainList,
+  AvatarIdentity,
   AvatarDataHasFlags,
   AvatarData,
-  AvatarGlobalPosition
+  AvatarGlobalPosition,
+  BulkAvatarData,
 };
