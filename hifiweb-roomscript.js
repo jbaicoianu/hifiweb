@@ -186,6 +186,15 @@ room.registerElement('hifidebug_node', {
       scale: V(.1,.1,.05),
       pos: V(0, -.05, 0)
     });
+    this.packetparticles = this.createObject('particle', {
+      count: 500,
+      scale: V(.02),
+      col: V(1,0,0),
+      duration: Infinity,
+      pos: V(0,-.05,0),
+      loop: true
+    });
+    this.currentParticle = 0;
   },
   setNode(node) {
     this.node = node;
@@ -254,41 +263,20 @@ console.log('pause', k, this.children[k]);
   },
   handleReceive(ev) {
     if (this.paused) return;
-    let packetpool = this.getPacketPool();
-    let obj = packetpool.grab({
-      //col: V(1,0,0),
-      //scale: V(.02, .06, .02),
-      col: 'white',
-      pos: V(-.02,0,-.035),
-      //vel: V(0,-2,0),
-      visible: true
-    });
-    //if (obj.id != 'sphere') obj.id = 'sphere';
-    obj.vel.y = -2;
-    if (obj.parent != this) {
-      this.appendChild(obj);
-    }
-    obj.setPacket(ev.detail, false);
-    setTimeout(() => { if (this == obj.parent && !this.paused) { this.removeChild(obj); packetpool.release(obj); } }, 350);
+    let particles = this.packetparticles,
+        num = this.currentParticle++ % particles.count,
+        packet = ev.detail;
+
+    let color = (packet.obfuscationlevel ? V(1,0,0) : V(0,1,0));
+    particles.setPoint(num, V(-.02 + Math.random() / 50,0,-.035 + Math.random() / 50), V(0, -2, 0), V(0,0,0), color);
+    setTimeout(() => { particles.setPoint(num, V(0, -9999, 0)); }, 400);
   },
   handleSend(ev) {
     if (this.paused) return;
-    let packetpool = this.getPacketPool();
-    let obj = packetpool.grab({
-      //scale: V(.02, .06, .02),
-      pos: V(.02,-.85,-.035),
-      col: 'white',
-      //vel: V(0,2,0),
-      visible: true
-    });
-    //if (obj.id != 'sphere') obj.id = 'sphere';
-    obj.vel.y = 2;
-    if (obj.parent != this) {
-      this.appendChild(obj);
-    }
-    //obj.col = V(1,1,0);
-    obj.setPacket(ev.detail, true);
-    setTimeout(() => { if (this == obj.parent && !this.paused) { this.removeChild(obj); packetpool.release(obj); } }, 350);
+    let particles = this.packetparticles,
+        num = this.currentParticle++ % particles.count;
+    particles.setPoint(num, V(.02 + Math.random() / 50,-.85,-.035 + Math.random() / 50), V(0, 2, 0), V(0,0,0), V(1,.5,0));
+    setTimeout(() => { particles.setPoint(num, V(0, -9999, 0)); }, 400);
   }
 });
 room.registerElement('hifidebug_packet', {
