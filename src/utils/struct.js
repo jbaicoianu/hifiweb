@@ -428,7 +428,7 @@ export class StructList_t {
     let size = 0;
     if (value) {
       for (let i = 0; i < value.length; i++) {
-        size += value[i].size();
+        size += (typeof value[i] == 'string' ? value[i].length + 4 : value[i].size());
       }
     }
     return size;
