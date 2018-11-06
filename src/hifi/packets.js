@@ -191,11 +191,11 @@ const NonSourcedPackets = [
 
 class NLPacket extends struct.define({
   sequenceNumberAndBitfield: new struct.Uint32_t,
-
+  //messageHeader: new struct.Struct_t, // optional, only if message header is set
   packetType: new struct.Uint8_t,
   version: new struct.Uint8_t,
   localNodeID: new struct.Uint16_t,
-  md5digest: new struct.Hex128_t,
+  hmac: new struct.Hex128_t,
   //payload: new struct.Struct_t
 }) {
   constructor(args) {
@@ -227,6 +227,13 @@ class NLPacket extends struct.define({
       data = new ArrayBuffer(this.headerLength + this.payload.size());
       offset = 0;
     }
+    this.sequenceNumberAndBitfield =
+      this.flags.control << 31 |
+      this.flags.reliable << 30 |
+      this.flags.message << 29 |
+      this.flags.obfuscationlevel << 27 |
+      this.sequenceNumber;
+
     let fin = super.write(data, offset);
     if (this.payload) {
       this.payload.write(fin, this.headerLength);
@@ -234,19 +241,35 @@ class NLPacket extends struct.define({
     return fin;
   }
   read(data, offset=0) {
-    super.read(data, offset);
+    //super.read(data, offset);
+    let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
+    this.sequenceNumberAndBitfield = buf.getUint32(0);
+    let headerOffset = 4;
 
-    this.sequenceNumber = this.sequenceNumberAndBitfield & 0x07FFFFF;
+    this.sequenceNumber = this.sequenceNumberAndBitfield & 0x07FFFFFF;
     this.flags = {
-      control: this.sequenceNumberAndBitField >> 31 & 1,
-      reliable: this.sequenceNumberAndBitField >> 30 & 1,
-      message: this.sequenceNumberAndBitField >> 29 & 1,
+      control: this.sequenceNumberAndBitfield >>> 31 & 1,
+      reliable: this.sequenceNumberAndBitfield >>> 30 & 1,
+      message: this.sequenceNumberAndBitfield >>> 29 & 1,
     };
-    this.obfuscationlevel = this.sequenceNumberAndBitField >> 27 & 3;
+    this.obfuscationlevel = this.sequenceNumberAndBitfield >>> 27 & 3;
 
-    if (this.flags.message) {
-      console.log('got a message packet');
+    if (this.flags.reliable) {
+      //console.log('got a reliable packet', this);
     }
+    if (this.flags.message) {
+      //console.log('got a message packet', this);
+      this.messageNumber = buf.getUint32(headerOffset);
+      this.messagePartNumber = buf.getUint32(headerOffset + 4);
+      headerOffset += 8;
+    }
+
+    this.packetType = buf.getUint8(headerOffset);
+    this.version = buf.getUint8(headerOffset + 1);
+    this.localNodeID = buf.getUint16(headerOffset + 1);
+
+    //hmac: new struct.Hex128_t,
+    // FIXME - need to read HMAC string for packet verification
 
     if (!isNaN(this.packetType) && isFinite(this.packetType)) {
       let packetType = PacketType.fromValue(this.packetType);
@@ -269,7 +292,7 @@ class NLPacket extends struct.define({
   static totalHeaderSize(packetType, isMessage) {
     return 4 + // sizeof(this.sequenceNumberAndBitfield)
            (isMessage ? 8 : 0) + // sizeof(messageNumber) + szeof(messagePartNumber), optional
-           NLPacket.localHeaderSize(packetType); // localID + verifcation hash, optional
+           NLPacket.localHeaderSize(packetType); // sourceID + verification hash, optional
   }
   static localHeaderSize(packetType) {
     let nonSourced = NonSourcedPackets.indexOf(packetType) != -1,
@@ -282,9 +305,24 @@ class NLPacket extends struct.define({
     
     return optionalSize; 
   }
+  static fromReceivedPacket(data) {
+    let nlpacket = new NLPacket();
+    nlpacket.read(data);
+    return nlpacket;
+  }
   verify(hmac) {
-    let data = this.payload.rawdata; //this.payload.write();
-    console.log(this.packetName, this.md5digest, hmac.calculateHash(data), hmac.calculateHash(new Uint8Array(this.payload.write())), this);
+    //let data = this.payload.rawdata; //this.payload.write();
+    let computedhash = hmac.calculateHash(new Uint8Array(this.payload.getData()));
+    //console.log(this.packetName, this.hmac, computedhash, hmac.calculateHash(new Uint8Array(this.payload.write())), this);
+    return computedhash == this.hmac;
+  }
+  writeVerificationHash(hmac) {
+    let newhash = hmac.calculateHash(new Uint8Array(this.payload.getData()));
+    this.hmac = newhash;
+    return newhash;
+  }
+  isReliable() {
+    return this.flags.reliable;
   }
 };
 
