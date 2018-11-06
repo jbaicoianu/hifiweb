@@ -98,6 +98,8 @@ class HifiClient extends EventTarget {
         let nodes = this.nodes;
 
         nodes.domain = new HifiNode('domain', this.peerconnection);
+        this.domainHandler = nodes.domain;
+        this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.domain }));
 
         nodes.domain.addPacketHandler('DomainList', (packet) => this.handleDomainList(packet));
 
@@ -110,12 +112,21 @@ class HifiClient extends EventTarget {
         nodes.entityscript = new HifiNode('entityscript', this.peerconnection);
         nodes.message = new HifiNode('message', this.peerconnection);
 
+        this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.avatar }));
+        this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.audio }));
+        this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.asset }));
+        this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.entity }));
+        this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.entityscript }));
+        this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.message }));
+
         // FIXME - ping handling should be handled by the nodes themselves, we're just doing one manually as a test for now
-        nodes.avatar.addPacketHandler('Ping', (packet) => this.handlePing(packet));
-        nodes.avatar.addPacketHandler('PingReply', (packet) => this.handlePingReply(packet));
+        //nodes.avatar.addPacketHandler('Ping', (packet) => this.handlePing(packet));
+        //nodes.avatar.addPacketHandler('PingReply', (packet) => this.handlePingReply(packet));
 
         this.peerconnection.addEventListener('icecandidate', (ev) => this.handleICECandidate(ev));;
         this.peerconnection.createOffer().then((desc) => this.handleSdpOffer(desc), null);
+
+        this.dispatchEvent(new CustomEvent('create'));
 
         break;
       default:
@@ -160,24 +171,108 @@ class HifiClient extends EventTarget {
     document.querySelector('hifi-packetlist').addPacket(packetel, true, dt);
     return nlpacket;
   }
+  negotiateAudioFormat() {
+    this.nodes.avatar.addPacketHandler('SelectedAudioFormat', (packet) => { console.log('handle selectedaudioformat packet!', packet); debugger; });
 
-  handlePing(packet) {
-//console.log('ping!', packet);
+    let pack = this.nodes.audio.createPacket('NegotiateAudioFormat');
+    pack.payload.numberOfCodecs = 2;
+    pack.payload.codecs = ['pcm', 'zlib'];
+    this.nodes.audio.sendPacket(pack);
+console.log('negotiate audio!', pack, pack.hmac);
   }
-  handlePingReply(packet) {
-//console.log('pingreply!', packet);
+  startAvatarUpdates() {
+    // FIXME - need to register with Entity server?
+
+    // Send AvatarIdentity https://github.com/highfidelity/hifi/blob/db87fe96962fe63c847507ead32a11dad2f0f6ae/libraries/avatars/src/AvatarData.cpp#L1973-L1989
+    let pack = this.nodes.avatar.createPacket('AvatarIdentity');
+    pack.payload.avatarSessionUUID = this.sessionUUID;
+
+    pack.payload.displayName = 'hifiweb';
+    this.nodes.avatar.sendPacket(pack);
+
+    setInterval(() => this.sendAvatarUpdate(), 20);
+
+    this.nodes.avatar.addPacketHandler('BulkAvatarData', (packet) => this.handleBulkAvatarData(packet));
+  }
+  sendAvatarUpdate() {
+    if (this.nodes.avatar && this.avatar.hasUpdates) {
+      // https://github.com/highfidelity/hifi/blob/master/libraries/avatars/src/AvatarData.cpp#L2152-L2188
+      let pack = this.nodes.avatar.createPacket('AvatarData');
+      pack.payload.updateFromAvatar(this.avatar);
+      this.nodes.avatar.sendPacket(pack);
+//console.log('avatar packet!', pack);
+      this.avatar.clearUpdates();
+    }
+  }
+  reset() {
+    console.log('TODO - domain handler reset');
+  }
+  setPermissions(permissions) {
+    // TODO - parse permissions based on bitmask
+    // https://github.com/highfidelity/hifi/blob/master/libraries/networking/src/LimitedNodeList.cpp#L152-L18
+    // https://github.com/highfidelity/hifi/blob/master/libraries/networking/src/NodePermissions.h#L67-L79
+    this.permissions = permissions;
+  }
+  setAuthenticatePackets(authenticate) {
+    this.authenticate = authenticate;
   }
   handleDomainList(packet) {
-console.log('got a domain list', packet);
+    // Based on NodeList::processDomainServerList
+    // https://github.com/highfidelity/hifi/blob/master/libraries/networking/src/NodeList.cpp#L616
+    this.dispatchEvent(new CustomEvent('receivedDomainServerList'));
+console.log('domain list', packet)
+
+    if (this.connected && this.domainHandler.getUUID() != packet.domainUUID) {
+      console.warn('IGNORING DomainList packet from ' + packet.domainUUID + ' while connected to ' + this.domainHandler.getUUID());
+      return;
+    }
+
+    // when connected, if the session ID or local ID were not null and changed, we should reset
+    if (this.connected &&
+        ((this.sessionLocalID != HifiNode.NULL_LOCAL_ID && packet.sessionLocalID != this.sessionLocalID) ||
+         (this.sessionUUID && packet.sessionUUID != this.sessionUUID))) {
+      console.log('Local ID or Session ID changed while connected to domain - forcing reset');
+      this.reset(true);
+
+      // tell the domain handler that we're no longer connected so that below
+      // it can re-perform actions as if we just connected
+      this.connected = false;
+    }
+
+    this.sessionLocalID = packet.sessionLocalID;
+    this.sessionUUID = packet.sessionUUID;
+
+    let newconnection = false;
+    // If this was the first domain-server list from this domain, we've now connected
+    if (!this.connected) {
+      //this.domainHandler.setLocalID(packet.domainLocalID);
+      this.domainHandler.domainSessionLocalID = packet.domainLocalID;
+      this.domainHandler.uuid = packet.domainUUID;
+      this.connected = true;
+      this.dispatchEvent(new CustomEvent('connect'));
+      newconnection = true;
+    }
+
+    this.setPermissions(packet.permissions);
+    this.setAuthenticatePackets(packet.authenticated);
+
     for (let i = 0; i < packet.nodes.length; i++) {
       let n = packet.nodes[i],
           node = this.nodes[NodeTypeMap[n.nodeType]];
       if (node.uuid != n.uuid) {
-console.log('update node', n, node);
-        node.updateNode(n, packet.localID);
-        //node.clientLocalID = packet.newLocalID;
+        node.updateNode(n, packet.sessionLocalID);
+        this.dispatchEvent(new CustomEvent('node_change', { detail: node }));
       }
     }
+    if (newconnection) {
+setTimeout(() => {
+      this.startAvatarUpdates();
+      this.negotiateAudioFormat();
+}, 5000);
+    }
+  }
+  handleBulkAvatarData(packet) {
+console.log('got bulk avatar data', packet.payload);
   }
 };
 
