@@ -10,7 +10,8 @@ export const NodeTypeMap = {
   W: 'avatar',
   M: 'audio',
   o: 'entity',
-  A: 'asset'
+  A: 'asset',
+  D: 'domain'
 }
 
 export const NodeType = {
@@ -29,20 +30,8 @@ export const NodeType = {
     Unassigned: 1,
 }
 
-
-// TODO - channel names should just be derived from the type, rather than having to maintain a list
-var channelnames = {
-  'domain': 'domain_server_dc',
-  'audio': 'audio_mixer_dc',
-  'avatar': 'avatar_mixer_dc',
-  'entity': 'entity_server_dc',
-  'entityscript': 'entity_script_server_dc',
-  'message': 'messages_mixer_dc',
-  'asset': 'asset_server_dc',
-};
-
 export class HifiNode extends EventTarget {
-  constructor(type, peerconnection) {
+  constructor(type, publicSocket) {
     super();
     this.type = type;
     this.uuid = null;
@@ -51,15 +40,13 @@ export class HifiNode extends EventTarget {
     //this.localID = null;
     //this.clientLocalID = null;
 
+    this.publicSocket = publicSocket;
+
     this.connectionSecret = null;
 
     this.sequenceNumber = 0;
 
     this.packetreceiver = new PacketReceiver();
-    let dataConstraint = {};
-
-    this.publicSocket = peerconnection.createDataChannel(channelnames[this.type], dataConstraint);
-    this.publicSocket.addEventListener('message', (ev) => this.handleNodePacket(ev));
 
     this.addPacketHandler('Ping', (packet) => this.handlePing(packet));
     this.addPacketHandler('PingReply', (packet) => this.handlePingReply(packet));
@@ -76,6 +63,7 @@ console.log('made new node', this);
   close() {
     this.publicSocket.close();
   }
+
   updateNode(node, domainSessionLocalID) {
     this.uuid = node.uuid;
     this.sessionLocalID = node.sessionLocalID;
@@ -105,7 +93,7 @@ console.log('made new node', this);
 /*
     // TODO - handle control packets https://github.com/highfidelity/hifi/blob/061f86e550be711ce49a12ec9cb05ae757851169/libraries/networking/src/udt/Socket.cpp#L373-L383
 
-    let arr = data.data;
+    let arr = data;
     let firstUint32 = arr[0] << 24 | arr[1] << 16 | arr[2] << 8 | arr[3];
     let isControlPacket = & CONTROL_BIT_MASK;
 */
@@ -114,15 +102,15 @@ console.log('made new node', this);
     if (isControlPacket) {
     } else {
     //let nlpacket = new packets.NLPacket();
-    //nlpacket.read(data.data);
+    //nlpacket.read(data);
 
-    //console.log(nlpacket, data.data);
-    //let packet = new HifiPacket({srcAddr: srcAddr,segment: { srcPort: srcPort, payload: data.data} });
+    //console.log(nlpacket, data);
+    //let packet = new HifiPacket({srcAddr: srcAddr,segment: { srcPort: srcPort, payload: data} });
     //let dt = (new Date().getTime() - this.startTime) / 1000;
     //document.querySelector('hifi-packetlist').addPacket(packet, false, dt);
 //console.log('BEEP', nlpacket);
     //this.packetdebugger.add(nlpacket);
-      let packet = packets.NLPacket.fromReceivedPacket(data.data);
+      let packet = packets.NLPacket.fromReceivedPacket(data);
       if (packet.obfuscationlevel == 0) {
         this.lastReceivedSequenceNumber = packet.sequenceNumber;
       }
@@ -224,12 +212,19 @@ console.log('send ack!', nextACKNumber, this.ackPacket);
     this.dispatchEvent(new CustomEvent('send', { detail: packet }));
   }
   writeBasePacket(packet) {
-    this.publicSocket.send(packet.write());
+    //Encapsulate data with info on the server we are communicating with
+    var p1 = new Uint8Array(1);
+    p1[0] = this.type.charCodeAt(0);
+    var p2 = new Uint8Array(packet.write());
+    var p = new Uint8Array(p1.byteLength + p2.byteLength);
+    p.set(p1, 0);
+    p.set(p2, p1.byteLength);
+    this.publicSocket.send(p);
   }
   handleNodePacket(data) {
-    let packet = this.getPacketFromData(data, 'janusvr', this.type);
+    let packet = this.getPacketFromData(data, 'janusvr', NodeTypeMap[this.type]);
     //this.receiver.handlePacket(packet);
-    //console.log(this.type, packet.packetName, packet);
+    //console.log(NodeTypeMap[this.type], packet.packetName, packet);
     this.dispatchEvent(new CustomEvent('receive', { detail: packet }));
     if (packet.payload) {
       if (this.authhash) {

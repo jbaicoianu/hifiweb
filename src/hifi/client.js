@@ -1,5 +1,5 @@
 import { PacketReceiver } from './packetreceiver.js';
-import { HifiNode, NodeTypeMap } from './node.js';
+import { HifiNode, NodeType, NodeTypeMap } from './node.js';
 import { HifiAvatar } from './avatar.js';
 
 class HifiClient extends EventTarget {
@@ -25,18 +25,12 @@ class HifiClient extends EventTarget {
     console.log('Starting connection to hifi relay');
     this.webrtcoptions = {};
     this.peerconnection = null;
-    this.channels = {
-      domain: null,
-      audio: null,
-      avatar: null,
-      entity: null,
-      entityscript: null,
-      message: null,
-      asset: null,
-    };
+    this.channel = null;
     this.remoteCandidates = [];
+    this.connected = false;
     this.signalserver = new WebSocket(this.relayserver);
-    this.signalserver.addEventListener('message', (ev) => this.handleSignalMessage(ev));
+    this.signalserver.addEventListener('close', (ev) => { this.connected = false; });
+    this.signalserver.addEventListener('message', (ev) => { this.handleSignalMessage(ev); });
   }
 
   connectToDomain(domain) {
@@ -95,22 +89,24 @@ class HifiClient extends EventTarget {
             ]}]}, this.webrtcoptions);
         console.log('Created peer connection', this.peerconnection);
 
-        let nodes = this.nodes;
+        let dataConstraint = {};
+        this.publicSocket = this.peerconnection.createDataChannel('datachannel', dataConstraint);
+        this.publicSocket.addEventListener('message', (ev) => this.handlePacket(ev));
+        console.log('Created data channel', this.peerconnection, this.publicSocket);
 
-        nodes.domain = new HifiNode('domain', this.peerconnection);
+        let nodes = this.nodes;
+        nodes.domain = new HifiNode(NodeType.DomainServer, this.publicSocket);
         this.domainHandler = nodes.domain;
         this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.domain }));
 
         nodes.domain.addPacketHandler('DomainList', (packet) => this.handleDomainList(packet));
 
-        // FIXME - we should create the HifiNode instances in the domain list handler, but right now
-        //         the relay waits for all 7 connections to be established before proceeding
-        nodes.avatar = new HifiNode('avatar', this.peerconnection);
-        nodes.audio = new HifiNode('audio', this.peerconnection);
-        nodes.asset = new HifiNode('asset', this.peerconnection);
-        nodes.entity = new HifiNode('entity', this.peerconnection);
-        nodes.entityscript = new HifiNode('entityscript', this.peerconnection);
-        nodes.message = new HifiNode('message', this.peerconnection);
+        nodes.avatar = new HifiNode(NodeType.AvatarMixer, this.publicSocket);
+        nodes.audio = new HifiNode(NodeType.AudioMixer, this.publicSocket);
+        nodes.asset = new HifiNode(NodeType.AssetServer, this.publicSocket);
+        nodes.entity = new HifiNode(NodeType.EntityServer, this.publicSocket);
+        nodes.entityscript = new HifiNode(NodeType.EntityScriptServer, this.publicSocket);
+        nodes.message = new HifiNode(NodeType.MessagesMixer, this.publicSocket);
 
         this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.avatar }));
         this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.audio }));
@@ -155,6 +151,17 @@ class HifiClient extends EventTarget {
       };
       console.log('Send ICE candidate: \n' + event.candidate.candidate + '\n' + event.candidate.sdpMid + '\n' + event.candidate.sdpMLineIndex);
       this.signalserver.send(JSON.stringify(msg));
+    }
+  }
+  handlePacket(event) {
+    if (event.data) {
+        //Check packet for the type of server that we are communicating with
+        var servertype = String.fromCharCode((new Uint8Array(event.data.slice(0,1)))[0]);
+        //console.log('servertype', servertype)
+
+        //Send packet to correct node
+        var nodedata = event.data.slice(1);
+        this.nodes[NodeTypeMap[servertype]].handleNodePacket(nodedata);
     }
   }
 
