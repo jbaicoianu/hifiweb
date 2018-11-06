@@ -1,5 +1,7 @@
 import {HifiClient} from './client.js';
 
+export {HifiClient} from './client.js';
+
 class HifiClientElement extends HTMLElement {
   constructor() {
     super();
@@ -8,6 +10,7 @@ class HifiClientElement extends HTMLElement {
     });
 
     this.hifi = new HifiClient();
+    this.dispatchEvent(new CustomEvent('create'));
   }
 };
 customElements.define('hifi-client', HifiClientElement);
