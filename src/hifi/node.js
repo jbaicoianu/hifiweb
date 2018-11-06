@@ -208,7 +208,10 @@ console.log('send ack!', nextACKNumber, this.ackPacket);
     if (this.authhash) {
       packet.writeVerificationHash(this.authhash);
     }
-
+    this.writeBasePacket(packet);
+    this.dispatchEvent(new CustomEvent('send', { detail: packet }));
+  }
+  writeBasePacket(packet) {
     //Encapsulate data with info on the server we are communicating with
     var p1 = new Uint8Array(1);
     p1[0] = this.type.charCodeAt(0);
@@ -216,12 +219,7 @@ console.log('send ack!', nextACKNumber, this.ackPacket);
     var p = new Uint8Array(p1.byteLength + p2.byteLength);
     p.set(p1, 0);
     p.set(p2, p1.byteLength);
-
     this.publicSocket.send(p);
-    this.dispatchEvent(new CustomEvent('send', { detail: packet }));
-  }
-  writeBasePacket(packet) {
-    this.publicSocket.send(packet.write());
   }
   handleNodePacket(data) {
     let packet = this.getPacketFromData(data, 'janusvr', NodeTypeMap[this.type]);
