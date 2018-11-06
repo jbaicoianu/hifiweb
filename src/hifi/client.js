@@ -27,8 +27,10 @@ class HifiClient extends EventTarget {
     this.peerconnection = null;
     this.channel = null;
     this.remoteCandidates = [];
+    this.connected = false;
     this.signalserver = new WebSocket(this.relayserver);
-    this.signalserver.addEventListener('message', (ev) => this.handleSignalMessage(ev));
+    this.signalserver.addEventListener('close', (ev) => { this.connected = false; });
+    this.signalserver.addEventListener('message', (ev) => { this.handleSignalMessage(ev); });
   }
 
   connectToDomain(domain) {
