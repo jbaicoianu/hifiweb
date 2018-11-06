@@ -11,7 +11,7 @@ export class PacketReceiver {
   handlePacket(packet) {
     let type = packet.packetType;
     if (this.listeners[type]) {
-      this.listeners[type].forEach(l => l(packet));
+      this.listeners[type].forEach(l => l(packet.payload));
     }
   }
 };
