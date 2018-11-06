@@ -46,6 +46,13 @@ class HifiClient extends EventTarget {
     };
     this.signalserver.send(JSON.stringify(msg));
   }
+  disconnectFromRelay() {
+    for (var k in this.nodes) {
+      this.nodes[k].close();
+      delete this.nodes[k];
+    }
+    this.signalserver.close();
+  }
 
   handleSignalMessage(event) {
     var msg = JSON.parse(event.data);
