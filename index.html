@@ -4,12 +4,13 @@
     <link rel="stylesheet" href="hifiweb.css"></script>
     <script src="https://baicoianu.com/~bai/janusweb/build/janusweb.js"></script>
     <script type="module">
-      import './src/hifi/hifiweb.js';
+      import * as hifi from './src/hifi/hifiweb.js';
+      window.hifi = hifi;
     </script>
     <title>High Fidelity Web Client 0.1a</title>
   </head>
   <body>
-    <hifi-client domain="hifi://janusvr"></hifi-client>
+    <!-- hifi-client domain="hifi://janusvr"></hifi-client -->
     <janus-viewer class="hifiweb"></janus-viewer>
 
 <fireboxroom>
@@ -17,9 +18,13 @@
     <assetimage id="hifi_skybox" src="https://i.imgur.com/tWJTOsq.png" />
     <assetimage id="hifi_skybox_top" src="https://i.imgur.com/n9aqQNI.png" />
     <assetimage id="hifi_skybox_bottom" src="https://i.imgur.com/efuThhc.png" />
+    <assetscript src="https://baicoianu.com/~bai/assets/assets.metacade.com/internetarchive/scripts/objectpool.js" />
+    <assetscript src="hifiweb-roomscript.js" />
   </assets>
-  <room skybox_left_id="hifi_skybox_bottom" skybox_right_id="hifi_skybox_bottom" skybox_up_id="hifi_skybox_bottom" skybox_down_id="hifi_skybox_bottom" skybox_front_id="hifi_skybox_bottom" skybox_back_id="hifi_skybox_bottom" private="true">
-    <object id="sphere" image_id="hifi_skybox" cull_face="front" pos="0 0 0" scale="1000 1000 1000" />
+  <room skybox_left_id="hifi_skybox_bottom" skybox_right_id="hifi_skybox_bottom" skybox_up_id="hifi_skybox_bottom" skybox_down_id="hifi_skybox_bottom" skybox_front_id="hifi_skybox_bottom" skybox_back_id="hifi_skybox_bottom" zdir="0 0 -1" walk_speed=".6" >
+    <object id="sphere" image_id="hifi_skybox" cull_face="front" pos="0 0 0" scale="1000 1000 1000" lighting="false" />
+
+    <hificlient domain="hifi://janusvr" />
   </room>
 </fireboxroom>
   </body>
