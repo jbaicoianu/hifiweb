@@ -100,6 +100,8 @@ class HifiClient extends EventTarget {
         this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.domain }));
 
         nodes.domain.addPacketHandler('DomainList', (packet) => this.handleDomainList(packet));
+        nodes.domain.addPacketHandler('ICEPing', (packet) => this.handleIcePing(packet));
+        nodes.domain.addPacketHandler('ICEPingReply', (packet) => this.handleIcePingReply(packet));
 
         nodes.avatar = new HifiNode(NodeType.AvatarMixer, this.publicSocket);
         nodes.audio = new HifiNode(NodeType.AudioMixer, this.publicSocket);
@@ -223,6 +225,42 @@ console.log('negotiate audio!', pack, pack.hmac);
   setAuthenticatePackets(authenticate) {
     this.authenticate = authenticate;
   }
+  startIcePingTimer() {
+    if (!this.icePingTimer) {
+      this.icePingTimer = setInterval(() => this.sendIcePing(), 1000);
+      this.domainListRequestTimer = setInterval(() => this.sendDomainListRequest(), 1000);
+    }
+  }
+  sendIcePing() {
+    let ping = this.nodes.domain.createPacket('ProxiedICEPing', { pingType: 2 });
+//console.log('proxiedping!', ping);
+    this.nodes.domain.sendPacket(ping);
+  }
+  sendDomainListRequest() {
+    let domainlistrequest = this.nodes.domain.createPacket('ProxiedDomainListRequest', {});
+//console.log('proxieddomainlistrequest!', domainlistrequest);
+    this.nodes.domain.sendPacket(domainlistrequest);
+  }
+  sendIcePingReply(ping) {
+    let pingreply = this.nodes.domain.createPacket('ProxiedICEPingReply', {
+      pingType: ping.pingType
+    });
+//console.log('proxiedpingreply!', pingreply);
+    this.nodes.domain.sendPacket(pingreply);
+  }
+  stopIcePingTimer() {
+    if (this.icePingTimer) {
+      clearTimeout(this.icePingTimer);
+      this.icePingTimer = false;
+    }
+  }
+  handleIcePing(packet) {
+//console.log('ping!', packet);
+    this.sendIcePingReply(packet);
+  }
+  handleIcePingReply(packet) {
+//console.log('pingreply!', packet);
+  }
   handleDomainList(packet) {
     // Based on NodeList::processDomainServerList
     // https://github.com/highfidelity/hifi/blob/master/libraries/networking/src/NodeList.cpp#L616
@@ -258,6 +296,7 @@ console.log('domain list', packet)
       this.connected = true;
       this.dispatchEvent(new CustomEvent('connect'));
       newconnection = true;
+      this.startIcePingTimer();
     }
 
     this.setPermissions(packet.permissions);

@@ -115,6 +115,12 @@ const PacketType = new Enum([
 
   'EntityClone',
   'EntityQueryInitialResultsComplete',
+  'BulkAvatarTraits',
+
+
+  'ProxiedICEPing',
+  'ProxiedICEPingReply',
+  'ProxiedDomainListRequest',
 
   'NUM_PACKET_TYPE'
 ]);
@@ -394,6 +400,30 @@ class HifiAddress extends struct.define({
   port: new struct.Uint16_t
 }) { };
 
+class ICEPing extends struct.define({
+  uuid: new struct.UUID_t,
+  pingType: new struct.Uint8_t
+}) {
+  static version() { return 18; }
+};
+class ICEPingReply extends struct.define({
+  uuid: new struct.UUID_t,
+  pingType: new struct.Uint8_t
+}) {
+  static version() { return 17; }
+};
+class ProxiedICEPing extends struct.define({
+  pingType: new struct.Uint8_t
+}) {
+};
+class ProxiedICEPingReply extends struct.define({
+  pingType: new struct.Uint8_t
+}) {
+};
+class ProxiedDomainListRequest extends struct.define({
+}) {
+};
+
 class Ping extends struct.define({
   pingType: new struct.Uint8_t,
   time: new struct.Uint64_t,
@@ -583,6 +613,11 @@ var PacketTypeDefs = {
   AvatarIdentity: AvatarIdentity,
   AvatarData: AvatarData,
   BulkAvatarData: BulkAvatarData,
+  ICEPing: ICEPing,
+  ICEPingReply: ICEPingReply,
+  ProxiedICEPing: ProxiedICEPing,
+  ProxiedICEPingReply: ProxiedICEPingReply,
+  ProxiedDomainListRequest: ProxiedDomainListRequest,
 };
 
 export function versionForPacketType(packetType) {
@@ -607,4 +642,9 @@ export {
   AvatarData,
   AvatarGlobalPosition,
   BulkAvatarData,
+  ICEPing,
+  ICEPingReply,
+  ProxiedICEPing,
+  ProxiedICEPingReply,
+  ProxiedDomainListRequest,
 };
