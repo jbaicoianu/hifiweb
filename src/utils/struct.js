@@ -400,7 +400,6 @@ export class String_t extends ByteRange_t {
     if (!offset) offset = 0;
     if (typeof value != 'string') value = String(value);
 
-    console.log('FIXME - implement String_t.write()', value);
     let length = value.length;
     data.setUint32(offset, length);
     for (let i = 0; i < length; i++) {

@@ -58,6 +58,7 @@ console.log('made new node', this);
     this.lossList = [];
     this.hasReceivedHandshake= false;
     this.ackPacket = ControlPacket.create(ControlPacket.types.ACK);
+    this.handshakeACK = ControlPacket.create(ControlPacket.types.HandshakeACK);
 
     //this.startPingTimer();
   }
@@ -109,19 +110,23 @@ console.log('made new node', this);
         this.processReceivedSequenceNumber(packet.sequenceNumber);
       }
 
+      /*
+      if (packet.isPartOfMessage()) {
+        this.queueReceivedMessagePacket(packet);
+      }
+      */
+
       return packet;
     }
   }
   processReceivedSequenceNumber(sequenceNumber, packetSize, payloadSize) {
     // Based on https://github.com/highfidelity/hifi/blob/25be635b763506e4a184bc363f5f7c5a6c0f1c78/libraries/networking/src/udt/Connection.cpp#L233
-/* 
-// TODO - relay is handling handshakes right now, but client will handle them soon
+
     if (!this.hasReceivedHandshake) {
       // Refuse to process any packets until we've received the handshake
       this.sendHandshakeRequest();
       return false;
     }
-*/
 
     // mark our last receive time as now (to push the potential expiry farther)
     this.lastReceiveTime = performance.now();
@@ -165,8 +170,127 @@ console.log('made new node', this);
   sendHandshakeRequest() {
     let handshakeRequestPacket = ControlPacket.create(ControlPacket.types.HandshakeRequest, 0);
     this.writeBasePacket(handshakeRequestPacket);
+console.log('sendHandshakeRequest', handshakeRequestPacket);
 
     this.didRequestHandshake = true;
+  }
+  processControl(controlPacket) {
+    // Simple dispatch to control packets processing methods based on their type.
+
+    // Processing of control packets (other than Handshake / Handshake ACK)
+    // is not performed if the handshake has not been completed.
+
+    switch (controlPacket.type) {
+      case ControlPacket.types.ACK:
+        if (this.hasReceivedHandshakeACK) {
+          this.processACK(controlPacket);
+        }
+        break;
+      case ControlPacket.types.Handshake:
+        this.processHandshake(controlPacket);
+        break;
+      case ControlPacket.types.HandshakeACK:
+        this.processHandshakeACK(controlPacket);
+        break;
+      case ControlPacket.types.HandshakeRequest:
+        if (this.hasReceivedHandshakeACK) {
+          // We're already in a state where we've received a handshake ack, so we are likely in a state
+          // where the other end expired our connection. Let's reset.
+
+          console.log("Got HandshakeRequest", this);
+
+          this.hasReceivedHandshakeACK = false;
+          this.stopSendQueue();
+        }
+        break;
+    }
+  }
+  processHandshake(controlPacket) {
+    let initialSequenceNumber = controlPacket.payload.sequenceNumber;
+console.log('processHandshake', controlPacket);
+
+    if (!this.hasReceivedHandshake || initialSequenceNumber != this.initialReceiveSequenceNumber) {
+      // server sent us a handshake - we need to assume this means state should be reset
+      // as long as we haven't received a handshake yet or we have and we've received some data
+
+      if (initialSequenceNumber != this.initialReceiveSequenceNumber) {
+          console.log("Resetting receive state, received a new initial sequence number in handshake");
+      }
+      this.resetReceiveState();
+      this.initialReceiveSequenceNumber = initialSequenceNumber;
+      this.lastReceivedSequenceNumber = initialSequenceNumber - 1;
+    }
+
+    //this.handshakeACK.reset();
+    this.handshakeACK.payload.sequenceNumber = initialSequenceNumber;
+    this.sendPacket(this.handshakeACK);
+
+    if (this.didRequestHandshake) {
+      this.dispatchEvent(new CustomElement('receiverHandshakeRequestComplete'));
+      this.didRequestHandshake = false;
+    }
+  }
+  processHandshakeACK(controlPacket) {
+    // https://github.com/highfidelity/hifi/blob/25be635b763506e4a184bc363f5f7c5a6c0f1c78/libraries/networking/src/udt/Connection.cpp#L385-L401
+
+    /*
+    // TODO - we don't implement SendQueue yet, this code would keep us from sending packets until we received the handshake ACK
+    // if we've decided to clean up the send queue then this handshake ACK should be ignored, it's useless
+    if (_sendQueue) {
+      SequenceNumber initialSequenceNumber;
+      controlPacket->readPrimitive(&initialSequenceNumber);
+
+      if (initialSequenceNumber == _initialSequenceNumber) {
+        // hand off this handshake ACK to the send queue so it knows it can start sending
+        getSendQueue().handshakeACK();
+
+        // indicate that handshake ACK was received
+        _hasReceivedHandshakeACK = true;
+      }
+    }
+    */
+console.log('processHandshakeACK', controlPacket);
+    this.hasReceivedHandshakeACK = true;
+  }
+  resetReceiveState() {
+    // https://github.com/highfidelity/hifi/blob/25be635b763506e4a184bc363f5f7c5a6c0f1c78/libraries/networking/src/udt/Connection.cpp#L401-L419
+    this.lastReceivedSequenceNumber = 0;
+    this.lossList = [];
+    this.connectionStart = performance.now();
+
+    /*
+    // TODO - we aren't currently queueing received messages, but if we were this is where we'd clear out stale ones
+    // clear any pending received messages
+    for (let k in this.pendingReceivedMessages) {
+      _parentSocket->messageFailed(this, pendingMessage.first);
+    }
+    */
+  }
+  processACK(controlPacket) {
+    // https://github.com/highfidelity/hifi/blob/25be635b763506e4a184bc363f5f7c5a6c0f1c78/libraries/networking/src/udt/Connection.cpp#L315-L352
+    let ack = controlPacket.payload.sequenceNumber;
+
+    if (ack < this.lastReceivedACK) {
+      // this is an out of order ACK, bail
+      return;
+    }
+    if (ack > this.lastReceivedACK) {
+      // this is not a repeated ACK, so update our member and tell the send queue
+      this.lastReceivedACK = ack;
+
+      // ACK the send queue so it knows what was received
+      //getSendQueue().ack(ack);
+    }
+
+    /*
+    // give this ACK to the congestion control and update the send queue parameters
+    updateCongestionControlAndSendQueue([this, ack, &controlPacket] {
+        if (_congestionControl->onACK(ack, controlPacket->getReceiveTime())) {
+            // the congestion control has told us it needs a fast re-transmit of ack + 1, add that now
+            _sendQueue->fastRetransmit(ack + 1);
+        }
+    });
+    */
   }
   sendACK() {
     let nextACKNumber = this.nextACK();
@@ -178,7 +302,7 @@ console.log('made new node', this);
 
     // Pack in the ACK number
     this.ackPacket.payload.sequenceNumber = nextACKNumber;
-//console.log('send ack!', nextACKNumber, this.ackPacket);
+console.log('send ack!', nextACKNumber, this.ackPacket);
     this.writeBasePacket(this.ackPacket);
 
     //this.stats.record(ConnectionStats::Stats::SentACK);
@@ -191,13 +315,17 @@ console.log('made new node', this);
     }
   }
   sendPacket(packet) {
-    packet.sequenceNumber = this.sequenceNumber++;
-    packet.version = packets.versionForPacketType(packet.packetName);
-    //console.log('send packet', this.type, packet.sequenceNumber, packet, this);
-    if (this.authhash) {
-      packet.writeVerificationHash(this.authhash);
+    if (packet instanceof ControlPacket) {
+      this.writeBasePacket(packet);
+    } else if (packet instanceof packets.NLPacket) {
+      packet.sequenceNumber = this.sequenceNumber++;
+      packet.version = packets.versionForPacketType(packet.packetName);
+      //console.log('send packet', this.type, packet.sequenceNumber, packet, this);
+      if (this.authhash) {
+        packet.writeVerificationHash(this.authhash);
+      }
+      this.writeBasePacket(packet);
     }
-    this.writeBasePacket(packet);
   }
   writeBasePacket(packet) {
     //Encapsulate data with info on the server we are communicating with
@@ -215,7 +343,9 @@ console.log('made new node', this);
     //this.receiver.handlePacket(packet);
     //console.log(NodeTypeMap[this.type], packet.packetName, packet);
     this.dispatchEvent(new CustomEvent('receive', { detail: packet }));
-    if (packet.payload) {
+    if (packet instanceof ControlPacket) {
+      this.processControl(packet);
+    } else if (packet.payload) {
       if (this.authhash) {
         packet.verify(this.authhash)
       }
