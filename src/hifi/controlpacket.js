@@ -9,9 +9,10 @@ class ControlPacket extends struct.define({
   //payload: new struct.Struct_t
 }) {
   read(data, offset) {
-    this.controlBitAndType = data.getUint32(offset);
-    this.controlBit = this.controlBitAndType >> 31 & 1
-    this.type = (this.controlBitAndType & ~CONTROL_BIT_MASK) >> 16;
+    let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
+    this.controlBitAndType = buf.getUint32(offset, true);
+    this.controlBit = this.controlBitAndType >>> 31 & 1
+    this.type = (this.controlBitAndType & ~CONTROL_BIT_MASK) >>> 16;
   }
   write(data, offset) {
     if (!data) {
@@ -20,7 +21,11 @@ class ControlPacket extends struct.define({
     }
     this.controlBitAndType = CONTROL_BIT_MASK | (this.type << 16)
     let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
-    buf.setUint32(0, this.controlBitAndType);
+    buf.setUint32(0, this.controlBitAndType, true);
+
+    this.payload.write(data, offset + this.headerLength);
+
+    return data;
   }
   updateControlBitAndType() {
     this.controlBitAndType = CONTROL_BIT_MASK | (this.type << 16)
@@ -38,6 +43,15 @@ class ControlPacket extends struct.define({
     }
 
 
+    return packet;
+  }
+  static fromReceivedPacket(data) {
+    let packet = new ControlPacket();
+    try {
+      packet.read(data);
+    } catch (e) {
+      console.log('failed to parse packet', packet, data, e);
+    }
     return packet;
   }
 };

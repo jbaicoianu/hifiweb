@@ -1,4 +1,3 @@
-let globalpacketpool;
 const nodecolors = {
   asset: 0x00b6a3,
   audio: 0xf39621,
@@ -12,7 +11,6 @@ const nodecolors = {
 room.registerElement('hificlient', {
   create() {
     if (typeof hifi !== 'undefined') {
-console.log('GOT IT');
       this.hifi = new hifi.HifiClient();
 
       this.createObject('hifidebug', { hifi: this.hifi });
@@ -96,10 +94,22 @@ room.registerElement('hifidebug_domain', {
     });
     this.indicator = this.createObject('object', {
       id: 'cylinder',
+      collision_id: 'cylinder',
+      collision_trigger: true,
       col: 'red',
       scale: V(.04, .005, .04),
       rotation: V(90, 0, 0),
-      pos: V(-.6, .0625, .03)
+      pos: V(-.6, .0625, .03),
+      onclick: (ev) => {
+        let hifi = this.hifi;
+        if (!hifi.connected) {
+          hifi.connectToRelay();
+          this.indicator.col = 'yellow';
+        } else {
+          hifi.disconnectFromRelay();
+          this.indicator.col = 'red';
+        }
+      }
     });
     this.domainlabel = this.createObject('text', {
       text: 'unconnected',
@@ -145,22 +155,25 @@ console.log('DEBUG UPDATE CLIENT', this.hifi, this.hifi.nodes);
   },
   handleNodeAdd(ev) {
     let node = ev.detail;
-    if (!this.nodes[node.type]) {
+    if (!this.nodes[node.typeName]) {
       this.createNode(node);
     } else {
-      this.nodes[node.type].setNode(node);
+      this.nodes[node.typeName].setNode(node);
     }
     this.updateNodePositions();
   },
   handleNodeChange(ev) {
     let node = ev.detail;
-    if (!this.nodes[node.type]) {
+console.log('a new node appears', node);
+    if (!this.nodes[node.typeName]) {
       this.createNode(node);
+    } else {
+      this.nodes[node.typeName].setNode(node);
     }
     this.updateNodePositions();
   },
   createNode(node) {
-    let nodeobj = this.nodes[node.type] = this.createObject('hifidebug_node');
+    let nodeobj = this.nodes[node.typeName] = this.createObject('hifidebug_node');
     nodeobj.setNode(node);
     this.updateNodePositions();
     return nodeobj;
@@ -182,7 +195,7 @@ room.registerElement('hifidebug_node', {
     this.packets = { incoming: [], outgoing: [] };
     this.nodeobject = this.createObject('object', {
       id: 'cube',
-      col: V(.8), //(this.node ? nodecolors[this.node.type] : V(1,1,0)),
+      col: V(.8), //(this.node ? nodecolors[this.node.typeName] : V(1,1,0)),
       scale: V(.1,.1,.05),
       pos: V(0, -.05, 0)
     });
@@ -197,52 +210,35 @@ room.registerElement('hifidebug_node', {
     this.currentParticle = 0;
   },
   setNode(node) {
+console.log('set the new node', node, this);
+    if (this.node) {
+      // FIXME - I don't think this works, we need bound member functions rather than fat arrow functions
+      node.removeEventListener('receive', (ev) => this.handleReceive(ev));
+      node.removeEventListener('send', (ev) => this.handleSend(ev));
+    }
     this.node = node;
     if (!this.nodelabel) {
       this.nodelabel = this.createObject('text', {
-        text: node.type,
+        text: node.typeName,
         verticalalign: 'middle',
         font_size: '.02',
         thickness: .005,
         font_scale: false,
-        col: nodecolors[node.type],
+        col: nodecolors[node.typeName],
         pos: V(0, -.05, .025),
       });
-    } else {
-      this.nodelabel.col = nodecolors[node.type];
+    } else if (this.nodelabel.text != node.typeName) {
+      this.nodelabel.text = node.typeName;
+      this.nodelabel.col = nodecolors[node.typeName];
     }
     if (this.nodeobject) {
-      //this.nodeobject.col = nodecolors[node.type];
+      //this.nodeobject.col = nodecolors[node.typeName];
     }
+    // FIXME - I don't think this works, we need bound member functions rather than fat arrow functions
     node.addEventListener('receive', (ev) => this.handleReceive(ev));
     node.addEventListener('send', (ev) => this.handleSend(ev));
   },
   update() {
-  },
-  getPacketPool() {
-    let useglobal = false;
-
-    if (useglobal) {
-      if (!globalpacketpool) {
-        globalpacketpool = room.createObject('objectpool', { max: 20, preallocate: true, objecttype: 'hifidebug_packet' });
-        globalpacketpool.objectargs = {
-          //id: 'hifidebug_packet',
-          //scale: V(.02, .06, .02),
-          //col: V(1,0,0),
-        };
-      }
-      return globalpacketpool;
-    } else {
-      if (!this.packetpool) {
-        this.packetpool = room.createObject('objectpool', { max: 30, preallocate: true, objecttype: 'hifidebug_packet' });
-        this.packetpool.objectargs = {
-          //id: 'hifidebug_packet',
-          //scale: V(.02, .06, .02),
-          //col: V(1,0,0),
-        };
-      }
-      return this.packetpool;
-    }
   },
   pause() {
     this.paused = true;
@@ -253,13 +249,6 @@ console.log('pause', k, this.children[k]);
   },
   resume() {
     this.paused = false;
-    let packetpool = this.getPacketPool();
-    let pending = [];
-    for (let i = 0; i < packetpool.pending.length; i++) {
-      let p = packetpool.pending[i];
-      if (p.parent == this) pending.push(p);
-    }
-    pending.forEach(p => { this.removeChild(p); packetpool.release(p); });
   },
   handleReceive(ev) {
     if (this.paused) return;
@@ -267,15 +256,31 @@ console.log('pause', k, this.children[k]);
         num = this.currentParticle++ % particles.count,
         packet = ev.detail;
 
-    let color = (packet.obfuscationlevel ? V(1,0,0) : V(0,1,0));
+    //let color = (packet.obfuscationlevel ? V(1,0,0) : V(0,1,0));
+    let color;
+    if (packet.controlBitAndType) {
+      color = V(0,1,1);
+    } else if (packet.obfuscationlevel) {
+      color = V(1, 0, 0);
+    } else {
+      color = V(0,1,0);
+    }
     particles.setPoint(num, V(-.02 + Math.random() / 50,0,-.035 + Math.random() / 50), V(0, -2, 0), V(0,0,0), color);
     setTimeout(() => { particles.setPoint(num, V(0, -9999, 0)); }, 400);
   },
   handleSend(ev) {
     if (this.paused) return;
+    let packet = ev.detail;
     let particles = this.packetparticles,
         num = this.currentParticle++ % particles.count;
-    particles.setPoint(num, V(.02 + Math.random() / 50,-.85,-.035 + Math.random() / 50), V(0, 2, 0), V(0,0,0), V(1,.5,0));
+
+    let color;
+    if (packet.controlBitAndType) {
+      color = V(0,1,1);
+    } else {
+      color = V(1,.5,0);
+    }
+    particles.setPoint(num, V(.02 + Math.random() / 50,-.85,-.035 + Math.random() / 50), V(0, 2, 0), V(0,0,0), color);
     setTimeout(() => { particles.setPoint(num, V(0, -9999, 0)); }, 400);
   }
 });

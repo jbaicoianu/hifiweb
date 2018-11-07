@@ -254,7 +254,7 @@ class NLPacket extends struct.define({
   read(data, offset=0) {
     //super.read(data, offset);
     let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
-    this.sequenceNumberAndBitfield = buf.getUint32(0);
+    this.sequenceNumberAndBitfield = buf.getUint32(0, true);
     let headerOffset = 4;
 
     this.sequenceNumber = (this.sequenceNumberAndBitfield & 0x07FFFFFF) >>> 0;
@@ -265,8 +265,9 @@ class NLPacket extends struct.define({
     };
     this.obfuscationlevel = this.sequenceNumberAndBitfield >>> 27 & 3;
     if (this.obfuscationlevel != ObfuscationLevel.NoObfuscation) {
-        //console.log("deobfuscating");
-        this.obfuscate(data,offset,ObfuscationLevel.NoObfuscation);
+        let unobfuscated = this.obfuscate(data, offset, ObfuscationLevel.NoObfuscation);
+        let buf = new DataView(unobfuscated.buffer);
+        //console.log("deobfuscating", this, data, unobfuscated);
     }
 
     if (this.flags.reliable) {
@@ -274,14 +275,14 @@ class NLPacket extends struct.define({
     }
     if (this.flags.message) {
       //console.log('got a message packet', this);
-      this.messageNumber = buf.getUint32(headerOffset);
-      this.messagePartNumber = buf.getUint32(headerOffset + 4);
+      this.messageNumber = buf.getUint32(headerOffset, true);
+      this.messagePartNumber = buf.getUint32(headerOffset + 4, true);
       headerOffset += 8;
     }
 
     this.packetType = buf.getUint8(headerOffset);
     this.version = buf.getUint8(headerOffset + 1);
-    this.localNodeID = buf.getUint16(headerOffset + 1);
+    this.localNodeID = buf.getUint16(headerOffset + 1, true);
 
     //hmac: new struct.Hex128_t,
     // FIXME - need to read HMAC string for packet verification
@@ -322,7 +323,11 @@ class NLPacket extends struct.define({
   }
   static fromReceivedPacket(data) {
     let nlpacket = new NLPacket();
-    nlpacket.read(data);
+    try {
+      nlpacket.read(data);
+    } catch (e) {
+      console.log('failed to parse packet', nlpacket, data, e);
+    }
     return nlpacket;
   }
   verify(hmac) {
@@ -372,8 +377,9 @@ class NLPacket extends struct.define({
             //console.log(obfuscateddata[j], unobfuscateddata[j], xorvalue);
             ++j;
         }
-        super.read(unobfuscateddata.buffer,offset);
-        this.obfuscationlevel = obfuscationlevel;
+        //super.read(unobfuscateddata.buffer,offset);
+        //this.obfuscationlevel = obfuscationlevel;
+        return unobfuscateddata;
         //console.log(this.sequenceNumber, this.flags.control, this.flags.reliable, this.flags.message, this.obfuscationlevel)
     }
   }
