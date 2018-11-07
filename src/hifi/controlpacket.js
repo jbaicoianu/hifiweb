@@ -9,10 +9,16 @@ class ControlPacket extends struct.define({
   //payload: new struct.Struct_t
 }) {
   read(data, offset) {
+    this._data = data;
     let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
     this.controlBitAndType = buf.getUint32(offset, true);
     this.controlBit = this.controlBitAndType >>> 31 & 1
     this.type = (this.controlBitAndType & ~CONTROL_BIT_MASK) >>> 16;
+
+    if (this.type && ControlPacketClasses[this.type]) {
+      this.payload = new ControlPacketClasses[this.type]();
+      this.payload.read(data, offset + 4);
+    }
   }
   write(data, offset) {
     if (!data) {
@@ -42,7 +48,6 @@ class ControlPacket extends struct.define({
       packet.payload = new ControlPacketClasses[packet.type]();
     }
 
-
     return packet;
   }
   static fromReceivedPacket(data) {
@@ -63,24 +68,22 @@ ControlPacket.types = new Flags([
 ]);
 
 class ACKPacket extends struct.define({
-  sequenceNumber: new struct.Uint32_t
+  sequenceNumber: new struct.Uint32BE_t
 }) { };
 class HandshakePacket extends struct.define({
-  sequenceNumber: new struct.Uint32_t
+  sequenceNumber: new struct.Uint32BE_t
 }) { };
 class HandshakeACKPacket extends struct.define({
-  sequenceNumber: new struct.Uint32_t
+  sequenceNumber: new struct.Uint32BE_t
 }) { };
 class HandshakeRequestPacket extends struct.define({
 }) { };
 
-const ControlPacketClasses = [
-  null,
-  ACKPacket,
-  HandshakePacket,
-  HandshakeACKPacket,
-  HandshakeRequestPacket
-];
+const ControlPacketClasses = {};
+ControlPacketClasses[ControlPacket.types.ACK] = ACKPacket;
+ControlPacketClasses[ControlPacket.types.Handshake] = HandshakePacket;
+ControlPacketClasses[ControlPacket.types.HandshakeACK] = HandshakeACKPacket;
+ControlPacketClasses[ControlPacket.types.HandshakeRequest] = HandshakeRequestPacket;
 
 export {
   ControlPacket
