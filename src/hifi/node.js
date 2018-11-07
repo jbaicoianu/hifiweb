@@ -34,6 +34,7 @@ export class HifiNode extends EventTarget {
   constructor(type, publicSocket) {
     super();
     this.type = type;
+    this.typeName = NodeTypeMap[type];
     this.uuid = null;
     this.permissions = null;
     this.isReplicated = false;
@@ -89,34 +90,22 @@ console.log('made new node', this);
     return 1;
   }
   getPacketFromData(data, srcAddr, srcPort) {
-    let isControlPacket = false;
-/*
-    // TODO - handle control packets https://github.com/highfidelity/hifi/blob/061f86e550be711ce49a12ec9cb05ae757851169/libraries/networking/src/udt/Socket.cpp#L373-L383
-
-    let arr = data;
-    let firstUint32 = arr[0] << 24 | arr[1] << 16 | arr[2] << 8 | arr[3];
-    let isControlPacket = & CONTROL_BIT_MASK;
-*/
+    // Detect whether this is a control packet or an NLPacket by looking at the first 4 bytes (NOTE - maybe we only really need one..)
+    let arr32 = new Uint32Array(data, 0, 1);
+    let isControlPacket = arr32[0] >>> 31 & 1;
 
     // https://github.com/highfidelity/hifi/blob/061f86e550be711ce49a12ec9cb05ae757851169/libraries/networking/src/udt/Socket.cpp#L370-L421
     if (isControlPacket) {
+      let packet = ControlPacket.fromReceivedPacket(data);
+      return packet;
     } else {
-    //let nlpacket = new packets.NLPacket();
-    //nlpacket.read(data);
-
-    //console.log(nlpacket, data);
-    //let packet = new HifiPacket({srcAddr: srcAddr,segment: { srcPort: srcPort, payload: data} });
-    //let dt = (new Date().getTime() - this.startTime) / 1000;
-    //document.querySelector('hifi-packetlist').addPacket(packet, false, dt);
-//console.log('BEEP', nlpacket);
-    //this.packetdebugger.add(nlpacket);
       let packet = packets.NLPacket.fromReceivedPacket(data);
+
+      // FIXME - only recording sequenceNumbers for non-obfuscated packets, I think once everything is implemented with ACKs and handshakes it won't be necessary
       if (packet.obfuscationlevel == 0) {
         this.lastReceivedSequenceNumber = packet.sequenceNumber;
       }
       if (packet.isReliable()) {
-        // TODO - the following function sends ACKs, implement it!
-        // https://github.com/highfidelity/hifi/blob/25be635b763506e4a184bc363f5f7c5a6c0f1c78/libraries/networking/src/udt/Connection.cpp#L233-L279
         this.processReceivedSequenceNumber(packet.sequenceNumber);
       }
 
@@ -188,8 +177,8 @@ console.log('made new node', this);
     //this.ackPacket.reset(); // We need to reset it every time.
 
     // Pack in the ACK number
-    this.ackPacket.sequenceNumber = nextACKNumber;
-console.log('send ack!', nextACKNumber, this.ackPacket);
+    this.ackPacket.payload.sequenceNumber = nextACKNumber;
+//console.log('send ack!', nextACKNumber, this.ackPacket);
     this.writeBasePacket(this.ackPacket);
 
     //this.stats.record(ConnectionStats::Stats::SentACK);
@@ -209,7 +198,6 @@ console.log('send ack!', nextACKNumber, this.ackPacket);
       packet.writeVerificationHash(this.authhash);
     }
     this.writeBasePacket(packet);
-    this.dispatchEvent(new CustomEvent('send', { detail: packet }));
   }
   writeBasePacket(packet) {
     //Encapsulate data with info on the server we are communicating with
@@ -220,6 +208,7 @@ console.log('send ack!', nextACKNumber, this.ackPacket);
     p.set(p1, 0);
     p.set(p2, p1.byteLength);
     this.publicSocket.send(p);
+    this.dispatchEvent(new CustomEvent('send', { detail: packet }));
   }
   handleNodePacket(data) {
     let packet = this.getPacketFromData(data, 'janusvr', NodeTypeMap[this.type]);
