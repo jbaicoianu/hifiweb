@@ -545,10 +545,10 @@ class AvatarIdentity extends struct.define({
   avatarSessionUUID: new struct.UUID_t,
   identitySequenceNumber: new struct.Uint32_t,
   attachmentData: new struct.StructList_t,
-  displayName: new struct.String_t,
-  sessionDisplayName: new struct.String_t,
-  isReplicated: new struct.Boolean_t,
-  lookAtSnappingEnabled: new struct.Boolean_t
+  //displayName: new struct.String_t,
+  //sessionDisplayName: new struct.String_t,
+  //isReplicated: new struct.Boolean_t,
+  //lookAtSnappingEnabled: new struct.Boolean_t
 }) {
   static version() { return 44; }
 };
