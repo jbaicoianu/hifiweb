@@ -8,16 +8,17 @@ class ControlPacket extends struct.define({
   controlBitAndType: new struct.Uint32_t,
   //payload: new struct.Struct_t
 }) {
-  read(data, offset) {
+  read(data, offset=0) {
     this._data = data;
     let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
     this.controlBitAndType = buf.getUint32(offset, true);
     this.controlBit = this.controlBitAndType >>> 31 & 1
     this.type = (this.controlBitAndType & ~CONTROL_BIT_MASK) >>> 16;
 
-    if (this.type && ControlPacketClasses[this.type]) {
+    if (ControlPacketClasses[this.type]) {
+      let payloaddata = new Uint8Array(data, offset + 4, data.byteLength - offset - 4);
       this.payload = new ControlPacketClasses[this.type]();
-      this.payload.read(data, offset + 4);
+      this.payload.read(payloaddata.buffer, payloaddata.byteOffset);
     }
   }
   write(data, offset) {
@@ -30,6 +31,8 @@ class ControlPacket extends struct.define({
     buf.setUint32(0, this.controlBitAndType, true);
 
     this.payload.write(data, offset + this.headerLength);
+
+    this._data = data;
 
     return data;
   }
@@ -44,7 +47,7 @@ class ControlPacket extends struct.define({
     packet.type = type;
     packet.updateControlBitAndType();
 
-    if (packet.type && ControlPacketClasses[packet.type]) {
+    if (ControlPacketClasses[packet.type]) {
       packet.payload = new ControlPacketClasses[packet.type]();
     }
 
@@ -60,7 +63,7 @@ class ControlPacket extends struct.define({
     return packet;
   }
 };
-ControlPacket.types = new Flags([
+ControlPacket.types = new Enum([
   'ACK',
   'Handshake',
   'HandshakeACK',
@@ -68,13 +71,13 @@ ControlPacket.types = new Flags([
 ]);
 
 class ACKPacket extends struct.define({
-  sequenceNumber: new struct.Uint32BE_t
+  sequenceNumber: new struct.Uint32_t
 }) { };
 class HandshakePacket extends struct.define({
-  sequenceNumber: new struct.Uint32BE_t
+  sequenceNumber: new struct.Uint32_t
 }) { };
 class HandshakeACKPacket extends struct.define({
-  sequenceNumber: new struct.Uint32BE_t
+  sequenceNumber: new struct.Uint32_t
 }) { };
 class HandshakeRequestPacket extends struct.define({
 }) { };
