@@ -195,6 +195,7 @@ console.log('negotiate audio!', pack, pack.hmac);
     // Send AvatarIdentity https://github.com/highfidelity/hifi/blob/db87fe96962fe63c847507ead32a11dad2f0f6ae/libraries/avatars/src/AvatarData.cpp#L1973-L1989
     let pack = this.nodes.avatar.createPacket('AvatarIdentity');
     pack.payload.avatarSessionUUID = this.sessionUUID;
+    pack.flags.reliable = true;
 
     pack.payload.displayName = 'hifiweb';
     this.nodes.avatar.sendPacket(pack);
@@ -202,6 +203,7 @@ console.log('negotiate audio!', pack, pack.hmac);
     setInterval(() => this.sendAvatarUpdate(), 20);
 
     this.nodes.avatar.addPacketHandler('BulkAvatarData', (packet) => this.handleBulkAvatarData(packet));
+    this.nodes.avatar.addPacketHandler('AvatarIdentity', (packet) => this.handleAvatarIdentity(packet));
   }
   sendAvatarUpdate() {
     if (this.nodes.avatar && this.avatar.hasUpdates) {
@@ -265,7 +267,7 @@ console.log('negotiate audio!', pack, pack.hmac);
     // Based on NodeList::processDomainServerList
     // https://github.com/highfidelity/hifi/blob/master/libraries/networking/src/NodeList.cpp#L616
     this.dispatchEvent(new CustomEvent('receivedDomainServerList'));
-console.log('domain list', packet)
+    //console.log('domain list', packet)
 
     if (this.connected && this.domainHandler.getUUID() != packet.domainUUID) {
       console.warn('IGNORING DomainList packet from ' + packet.domainUUID + ' while connected to ' + this.domainHandler.getUUID());
@@ -314,8 +316,11 @@ console.log('domain list', packet)
 setTimeout(() => {
       this.startAvatarUpdates();
       this.negotiateAudioFormat();
-}, 5000);
+}, 500);
     }
+  }
+  handleAvatarIdentity(packet) {
+console.log('got avatar identity', packet.payload);
   }
   handleBulkAvatarData(packet) {
 console.log('got bulk avatar data', packet.payload);
