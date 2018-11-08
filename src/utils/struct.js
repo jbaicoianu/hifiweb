@@ -462,13 +462,11 @@ console.log('read them', this.value);
 }
 
 export function define(attrs) {
-  console.log('define new struct');
   return class extends Struct {
     getAttributes() {
       let allattrs = {};
       for (let k in attrs) {
         if (attrs[k] instanceof Struct_t && this[k]) {
-console.log(this, k, attrs[k]);
           let childattrs = this[k].getAttributes();
           for (let j in childattrs) {
             allattrs[j] = childattrs[j];
