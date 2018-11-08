@@ -164,7 +164,6 @@ console.log('DEBUG UPDATE CLIENT', this.hifi, this.hifi.nodes);
   },
   handleNodeChange(ev) {
     let node = ev.detail;
-console.log('a new node appears', node);
     if (!this.nodes[node.typeName]) {
       this.createNode(node);
     } else {
@@ -207,14 +206,17 @@ room.registerElement('hifidebug_node', {
       pos: V(0,-.05,0),
       loop: true
     });
+    this.packetlog = this.createObject('hifidebug_packetlog', {
+    });
     this.currentParticle = 0;
   },
   setNode(node) {
-console.log('set the new node', node, this);
-    if (this.node) {
+    if (this.node !== node) {
       // FIXME - I don't think this works, we need bound member functions rather than fat arrow functions
-      node.removeEventListener('receive', (ev) => this.handleReceive(ev));
-      node.removeEventListener('send', (ev) => this.handleSend(ev));
+      //node.removeEventListener('receive', (ev) => this.handleReceive(ev));
+      //node.removeEventListener('send', (ev) => this.handleSend(ev));
+      node.addEventListener('receive', (ev) => this.handleReceive(ev));
+      node.addEventListener('send', (ev) => this.handleSend(ev));
     }
     this.node = node;
     if (!this.nodelabel) {
@@ -235,8 +237,8 @@ console.log('set the new node', node, this);
       //this.nodeobject.col = nodecolors[node.typeName];
     }
     // FIXME - I don't think this works, we need bound member functions rather than fat arrow functions
-    node.addEventListener('receive', (ev) => this.handleReceive(ev));
-    node.addEventListener('send', (ev) => this.handleSend(ev));
+    //node.addEventListener('receive', (ev) => this.handleReceive(ev));
+    //node.addEventListener('send', (ev) => this.handleSend(ev));
   },
   update() {
   },
@@ -256,6 +258,8 @@ console.log('pause', k, this.children[k]);
         num = this.currentParticle++ % particles.count,
         packet = ev.detail;
 
+    this.packetlog.logRecv(packet);
+
     //let color = (packet.obfuscationlevel ? V(1,0,0) : V(0,1,0));
     let color;
     if (packet.controlBitAndType) {
@@ -274,6 +278,8 @@ console.log('pause', k, this.children[k]);
     let particles = this.packetparticles,
         num = this.currentParticle++ % particles.count;
 
+    this.packetlog.logSend(packet);
+
     let color;
     if (packet.controlBitAndType) {
       color = V(0,1,1);
@@ -283,6 +289,17 @@ console.log('pause', k, this.children[k]);
     particles.setPoint(num, V(.02 + Math.random() / 50,-.85,-.035 + Math.random() / 50), V(0, 2, 0), V(0,0,0), color);
     setTimeout(() => { particles.setPoint(num, V(0, -9999, 0)); }, 400);
   }
+});
+room.registerElement('hifidebug_packetlog', {
+  create() {
+    this.log = [];
+  },
+  logSend(packet) {
+    this.log.push(packet);
+  },
+  logRecv(packet) {
+    this.log.push(packet);
+  },
 });
 room.registerElement('hifidebug_packet', {
   create() {
