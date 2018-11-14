@@ -28,7 +28,7 @@ room.registerElement('hificlient', {
       let pos = player.pos,
           avatar = this.hifi.avatar;
   
-      if (pos.distanceTo(avatar.position) > .001) {
+      if (avatar && pos.distanceTo(avatar.position) > .001) {
         this.hifi.avatar.setPosition(pos);
       }
     }
@@ -194,6 +194,8 @@ room.registerElement('hifidebug_node', {
     this.packets = { incoming: [], outgoing: [] };
     this.nodeobject = this.createObject('object', {
       id: 'cube',
+      collision_id: 'cube',
+      collision_trigger: true,
       col: V(.8), //(this.node ? nodecolors[this.node.typeName] : V(1,1,0)),
       scale: V(.1,.1,.05),
       pos: V(0, -.05, 0)
@@ -207,8 +209,11 @@ room.registerElement('hifidebug_node', {
       loop: true
     });
     this.packetlog = this.createObject('hifidebug_packetlog', {
+      node: this.node
     });
     this.currentParticle = 0;
+
+    this.nodeobject.addEventListener('click', (ev) => this.handleClick(ev));
   },
   setNode(node) {
     if (this.node !== node) {
@@ -273,6 +278,7 @@ console.log('pause', k, this.children[k]);
     setTimeout(() => { particles.setPoint(num, V(0, -9999, 0)); }, 400);
   },
   handleSend(ev) {
+//console.log('handle send', this.packetlog.log.items);
     if (this.paused) return;
     let packet = ev.detail;
     let particles = this.packetparticles,
@@ -288,21 +294,77 @@ console.log('pause', k, this.children[k]);
     }
     particles.setPoint(num, V(.02 + Math.random() / 50,-.85,-.035 + Math.random() / 50), V(0, 2, 0), V(0,0,0), color);
     setTimeout(() => { particles.setPoint(num, V(0, -9999, 0)); }, 400);
+  },
+  handleClick(ev) {
+    console.log('show packet log', this.packetlog);
+
+    this.packetlog.showLog();
   }
 });
 room.registerElement('hifidebug_packetlog', {
+  node: null,
   create() {
-    this.log = [];
+    this.log = elation.elements.create('collection-simple', { }); // TODO - maybe a timeseries-optimized collection type would be a good idea here?
+console.log('new packet log', this.log);
   },
   logSend(packet) {
-    this.log.push(packet);
+    this.log.add({
+      dir: 'send',
+      time: new Date().getTime(),
+      packet: packet
+    });
   },
   logRecv(packet) {
-    this.log.push(packet);
+    this.log.add({
+      dir: 'recv',
+      time: new Date().getTime(),
+      packet: packet
+    });
   },
+  showLog() {
+    if (!this.window) {
+      this.panel = elation.elements.create('ui-window-content', {
+        class: 'hifidebug-packetlog'
+      });
+      this.loglist = elation.elements.create('hifidebug-packetlist', {
+        collection: this.log,
+        itemcomponent: 'hifidebug-packet',
+        append: this.panel,
+        autoscroll: 1
+      });
+      this.window = elation.elements.create('ui-window', {
+        title: "Packet log: " + this.node.typeName,
+        content: this.panel,
+        append: document.body
+      });
+    } else {
+      this.window.show();
+    }
+console.log('show it', this.window);
+  }
 });
-room.registerElement('hifidebug_packet', {
+elation.elements.define('hifidebug-packetlist', class extends elation.elements.ui.list {
+  render() {
+    return;
+  }
+  oncollection_add(ev) {
+    let wasScrollAtBottom = this.isScrollAtBottom(this.autoscrollmargin);
+
+    let packet = elation.elements.create('hifidebug-packet', {
+      value: ev.data.item,
+      append: this
+    });
+
+    while (this.childNodes.length > 1000) {
+      this.removeChild(this.firstChild);
+    }
+
+    this.applyAutoScroll(wasScrollAtBottom);
+  }
+});
+elation.elements.define('hifidebug-packet', class extends elation.elements.ui.item {
   create() {
+/*
     this.packetobj = this.createObject('object', {
       id: 'cone',
       scale: V(.02, .06, .02),
@@ -310,6 +372,10 @@ room.registerElement('hifidebug_packet', {
       collision_id: 'sphere',
       collision_trigger: true
     });
+*/
+//this.innerHTML = 'dood';
+
+    if (this.value) this.setPacket(this.value);
 /*
     this.packetlabel = this.createObject('text', {
       align: 'left',
@@ -322,29 +388,56 @@ room.registerElement('hifidebug_packet', {
       text: '(unknown)'
     });
 */
+  }
+  setPacket(data) {
+    let packet = data.packet;
 
-    this.addEventListener('click', (ev) => this.handleClick(ev));
-  },
-  setPacket(packet, wasSent) {
-    this.packet = packet;
-    if (this.packetlabel) {
-      if (this.packet.packetName) {
-        this.packetlabel.text = this.packet.packetName;
-      } else {
-        this.packetlabel.text = '(unknown)';
-      }
-    } 
-    if (this.packetobj) {
-      if (wasSent) {
-        this.packetobj.col = 'cyan';
-        this.packetobj.rotation.z = 0;
-      } else {
-        this.packetobj.col = 'green';
-        this.packetobj.rotation.z = 180;
-      }
+    let header = document.createElement('h3'),
+        subheader = document.createElement('h4'),
+        flags = document.createElement('ul'),
+        hex = document.createElement('pre');
+
+    header.innerHTML = packet.packetName + ' (' + packet.packetType + ') ' + 'seqid ' + packet.sequenceNumber;
+
+    if (data.dir == 'send') {
+      this.className = 'sending';
+      //subheader.innerHTML = packet.packet.srcAddr + ':' + packet.packet.segment.srcPort + ' <strong>=&gt;</strong> ' + packet.packet.dstAddr + ':' + packet.packet.segment.dstPort;
+    } else {
+      this.className = 'receiving';
+      //subheader.innerHTML = packet.packet.dstAddr + ':' + packet.packet.segment.dstPort + ' <strong>&lt;=</strong> ' + packet.packet.srcAddr + ':' + packet.packet.segment.srcPort;
     }
-  },
-  handleClick(ev) {
-console.log('CLICKED A PACKET', this.packet, ev, this);
+
+    //hex.innerHTML += hexdumpstr(packet._data);
+
+    let flag_control = document.createElement('li'),
+        flag_reliable = document.createElement('li'),
+        flag_message = document.createElement('li');
+
+    flags.className = 'packetflags';
+
+    flag_control.innerHTML = 'control';
+    flag_reliable.innerHTML = 'reliable';
+    flag_message.innerHTML = 'message';
+
+    if (packet.flags) {
+      if (packet.flags.control) flag_control.className = 'selected';
+      if (packet.flags.reliable) flag_reliable.className = 'selected';
+      if (packet.flags.message) flag_message.className = 'selected';
+    }
+
+    flags.appendChild(flag_control);
+    flags.appendChild(flag_reliable);
+    flags.appendChild(flag_message);
+
+    subheader.appendChild(flags);
+
+    this.appendChild(header);
+    this.appendChild(subheader);
+    //this.appendChild(hex);
+
+    let structview = document.createElement('struct-view');
+    structview.target = packet;
+    this.appendChild(structview);
+
   }
 });
