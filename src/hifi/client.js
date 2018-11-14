@@ -1,13 +1,15 @@
 import { PacketReceiver } from './packetreceiver.js';
 import { HifiNode, NodeType, NodeTypeMap } from './node.js';
 import { HifiAvatar } from './avatar.js';
+import { HifiAvatarManager } from './avatarmanager.js';
+import { } from '../structviewer.js';
 
 class HifiClient extends EventTarget {
   constructor() {
     super();
 
     this.nodes = {};
-    this.relayserver = 'ws://hifi.janusvr.com:8118';
+    this.relayserver = 'wss://hifirelay.janusvr.com:8118';
     this.domain = 'hifi://janusvr';
 
     this.startTime = new Date().getTime();
@@ -16,7 +18,9 @@ class HifiClient extends EventTarget {
     document.body.appendChild(this.packetdebugger);
     */
 
-    this.avatar = new HifiAvatar();
+    //this.avatar = new HifiAvatar();
+    this.avatars = new HifiAvatarManager();
+    this.avatar = null;
 
     this.connectToRelay();
   }
@@ -181,29 +185,25 @@ class HifiClient extends EventTarget {
     return nlpacket;
   }
   negotiateAudioFormat() {
-    this.nodes.avatar.addPacketHandler('SelectedAudioFormat', (packet) => { console.log('handle selectedaudioformat packet!', packet); debugger; });
+    this.nodes.audio.addPacketHandler('SelectedAudioFormat', (packet) => this.handleSelectedAudioFormat(packet));
 
     let pack = this.nodes.audio.createPacket('NegotiateAudioFormat');
-    pack.payload.numberOfCodecs = 2;
-    pack.payload.codecs = ['pcm', 'zlib'];
-    this.nodes.audio.sendPacket(pack);
+    pack.payload.codecs = ['pcm'];
 console.log('negotiate audio!', pack, pack.hmac);
+    this.nodes.audio.sendPacket(pack);
   }
   startAvatarUpdates() {
     // FIXME - need to register with Entity server?
 
-    // Send AvatarIdentity https://github.com/highfidelity/hifi/blob/db87fe96962fe63c847507ead32a11dad2f0f6ae/libraries/avatars/src/AvatarData.cpp#L1973-L1989
-    let pack = this.nodes.avatar.createPacket('AvatarIdentity');
-    pack.payload.avatarSessionUUID = this.sessionUUID;
-    pack.flags.reliable = true;
-
-    pack.payload.displayName = 'hifiweb';
-    this.nodes.avatar.sendPacket(pack);
+console.log('start avatar updates', this.sessionUUID);
+    this.avatar = this.avatars.newOrExistingAvatar(this.sessionUUID);
+    this.avatar.sendIdentityPacket(this.nodes.avatar);
 
     setInterval(() => this.sendAvatarUpdate(), 20);
 
     this.nodes.avatar.addPacketHandler('BulkAvatarData', (packet) => this.handleBulkAvatarData(packet));
     this.nodes.avatar.addPacketHandler('AvatarIdentity', (packet) => this.handleAvatarIdentity(packet));
+    this.nodes.avatar.addPacketHandler('KillAvatar', (packet) => this.handleKillAvatar(packet));
   }
   sendAvatarUpdate() {
     if (this.nodes.avatar && this.avatar.hasUpdates) {
@@ -211,7 +211,7 @@ console.log('negotiate audio!', pack, pack.hmac);
       let pack = this.nodes.avatar.createPacket('AvatarData');
       pack.payload.updateFromAvatar(this.avatar);
       this.nodes.avatar.sendPacket(pack);
-//console.log('avatar packet!', pack);
+console.log('avatar packet!', pack);
       this.avatar.clearUpdates();
     }
   }
@@ -320,10 +320,30 @@ setTimeout(() => {
     }
   }
   handleAvatarIdentity(packet) {
-console.log('got avatar identity', packet.payload);
+//console.log('got avatar identity', packet);
+    this.avatars.processAvatarIdentityPacket(packet);
   }
   handleBulkAvatarData(packet) {
-console.log('got bulk avatar data', packet.payload);
+//console.log('got bulk avatar data', packet);
+    this.avatars.processAvatarDataPacket(packet);
+  }
+  handleKillAvatar(packet) {
+console.log('got avatar kill', packet);
+    this.avatars.processKillAvatarPacket(packet);
+  }
+  handleSelectedAudioFormat(packet) {
+console.log('got selected audio format', packet);
+return;
+    this.audioSequence = 0;
+    setInterval(() => {
+      console.log('silent audio');
+      let pack = this.nodes.audio.createPacket('SilentAudioFrame');
+      pack.payload.sequence = this.audioSequence++;
+      pack.payload.codec = 'pcm';
+      pack.payload.samples = 480;
+      this.nodes.audio.sendPacket(pack);
+console.log(pack);
+    }, 10);
   }
 };
 
