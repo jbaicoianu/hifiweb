@@ -71,3 +71,35 @@ janus-ui-navigation janus-ui-statusindicator .inner {
 janus-ui-navigation janus-ui-statusindicator .inner:after {
   background: url(https://highfidelity.com/static-assets/main/logo-image-only-7ae724b98434583fe624a53bd63983094bb2ddda9976ca8d3e348b17c6955e59.svg);
 }
+.hifidebug-packetlog hifidebug-packetlist {
+  display: block;
+  height: 40em;
+  overflow-y: auto;
+}
+hifidebug-packet {
+  display: block;
+  width: 80%;
+  background: rgba(255,255,255,.4);
+  margin: .2em 0;
+  border: 1px solid #ffffff;
+  padding: .2em;
+}
+hifidebug-packet.receiving {
+  background: rgba(0,255,0,.4);
+  border: 1px solid #00ff00;
+  margin-left: 0%;
+}
+hifidebug-packet.receiving:hover {
+  background: rgba(0,255,0,.2);
+}
+hifidebug-packet.sending {
+  background: rgba(255,180,0,.4);
+  border: 1px solid #ff8000;
+  margin-left: 15%;
+}
+hifidebug-packet.sending:hover {
+  background: rgba(255,180,0,.2);
+}
+hifidebug-packet struct-view {
+  font-size: .8em;
+}
