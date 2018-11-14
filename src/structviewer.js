@@ -1,20 +1,5 @@
-import { BinaryReader, Enum, parseBinaryData, hexdump, hexdumpstr } from './utils.js';
+import { arrayget, arrayset }  from './utils/arraygetset.js';
 
-class StructViewer extends HTMLElement {
-  constructor() {
-    super();
-    let src = this.getAttribute('src');
-    if (src) {
-      this.load(src);
-    }
-  }
-  add(value) {
-console.log('add value', value);
-    let structview = document.createElement('struct-view');
-    structview.target = value;
-    this.appendChild(structview);
-  }
-}
 class StructView extends HTMLElement {
   set target(target) {
     //console.log(record);
@@ -33,12 +18,12 @@ console.log(' - ', frameheader);
     let segments = {};
     let idx = 0;
     for (let k in attrs) {
-      let size = attrs[k].size;
-      let name = k + ': ' + target[k];
+      let size = attrs[k].size(target[k]);
+      let name = k + ': ' + arrayget(target, k);
       segments[name] = [idx, idx + size];
       idx += size;
     }
-console.log('do it!', data, segments);
+    //console.log('do it!', data, segments, attrs);
 
     this.hexdumpSegments(data, segments);
   }
@@ -54,7 +39,7 @@ console.log('do it!', data, segments);
     ascii.className = 'ascii';
 
     this.appendChild(hex);
-    this.appendChild(ascii);
+    //this.appendChild(ascii);
 
     let segment = -1;
     let arr = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
@@ -103,7 +88,6 @@ console.log('do it!', data, segments);
   }
 
   selectSegment(segname) {
-console.log('select', segname);
     if (this.selectedsegment && segname != this.selectedsegment) {
       this.segments[this.selectedsegment].hex.classList.remove('selected');
       this.segments[this.selectedsegment].ascii.classList.remove('selected');
@@ -115,6 +99,5 @@ console.log('select', segname);
     }
   }
 }
-customElements.define('struct-viewer', StructViewer);
 customElements.define('struct-view', StructView);
 
