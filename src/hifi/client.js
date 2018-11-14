@@ -9,7 +9,7 @@ class HifiClient extends EventTarget {
     super();
 
     this.nodes = {};
-    this.relayserver = 'wss://hifirelay.janusvr.com:8118';
+    this.relayserver = 'wss://hifirelay.janusvr.com:8119';
     this.domain = 'hifi://janusvr';
 
     this.startTime = new Date().getTime();
