@@ -46,9 +46,9 @@ class HifiClient extends EventTarget {
   }
   disconnectFromRelay() {
     for (var k in this.nodes) {
-      this.nodes[k].close();
       delete this.nodes[k];
     }
+    this.publicSocket.close();
     this.signalserver.close();
   }
 
