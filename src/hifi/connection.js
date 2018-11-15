@@ -10,9 +10,10 @@ import { SendQueue } from './sendqueue.js';
 import { ControlPacket } from './controlpacket.js';
 
 export class Connection extends EventTarget {
-  constructor(parentSocket) {
+  constructor(type, parentSocket) {
     super();
 
+    this.type = type;
     this.hasReceivedHandshake = false;
     this.hasReceivedHandshakeACK = false;
     this.didRequestHandshake = false;
@@ -225,14 +226,11 @@ console.log('send ack!', nextACKNumber, this.ackPacket);
     var p = new Uint8Array(p1.byteLength + p2.byteLength);
     p.set(p1, 0);
     p.set(p2, p1.byteLength);
-    this.publicSocket.send(p);
+    this.parentSocket.send(p);
 //console.log('send', packet.payload, packet, this);
     this.dispatchEvent(new CustomEvent('send', { detail: packet }));
   }
   isConnected() {
-    return this.publicSocket.readyState == 'open';
-  }
-  close() {
-    this.publicSocket.close();
+    return this.parentSocket.readyState == 'open';
   }
 }
