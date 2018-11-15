@@ -115,6 +115,12 @@ const PacketType = new Enum([
 
   'EntityClone',
   'EntityQueryInitialResultsComplete',
+  'BulkAvatarTraits',
+
+
+  'ProxiedICEPing',
+  'ProxiedICEPingReply',
+  'ProxiedDomainListRequest',
 
   'NUM_PACKET_TYPE'
 ]);
@@ -206,7 +212,7 @@ class NLPacket extends struct.define({
   version: new struct.Uint8_t,
   localNodeID: new struct.Uint16_t,
   hmac: new struct.Hex128_t,
-  //payload: new struct.Struct_t
+  payload: new struct.Struct_t
 }) {
   constructor(args) {
     super(args);
@@ -246,7 +252,7 @@ class NLPacket extends struct.define({
 
     let fin = super.write(data, offset);
     if (this.payload) {
-      this.payload.write(fin, this.headerLength);
+      //this.payload.write(fin, this.headerLength);
     }
     return fin;
   }
@@ -254,7 +260,8 @@ class NLPacket extends struct.define({
   read(data, offset=0) {
     //super.read(data, offset);
     let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
-    this.sequenceNumberAndBitfield = buf.getUint32(0);
+    this._data = buf;
+    this.sequenceNumberAndBitfield = buf.getUint32(0, true);
     let headerOffset = 4;
 
     this.sequenceNumber = (this.sequenceNumberAndBitfield & 0x07FFFFFF) >>> 0;
@@ -265,8 +272,9 @@ class NLPacket extends struct.define({
     };
     this.obfuscationlevel = this.sequenceNumberAndBitfield >>> 27 & 3;
     if (this.obfuscationlevel != ObfuscationLevel.NoObfuscation) {
-        //console.log("deobfuscating");
-        this.obfuscate(data,offset,ObfuscationLevel.NoObfuscation);
+        let unobfuscated = this.obfuscate(data, offset, ObfuscationLevel.NoObfuscation);
+        let buf = new DataView(unobfuscated.buffer);
+        //console.log("deobfuscating", this, data, unobfuscated);
     }
 
     if (this.flags.reliable) {
@@ -274,14 +282,14 @@ class NLPacket extends struct.define({
     }
     if (this.flags.message) {
       //console.log('got a message packet', this);
-      this.messageNumber = buf.getUint32(headerOffset);
-      this.messagePartNumber = buf.getUint32(headerOffset + 4);
+      this.messageNumber = buf.getUint32(headerOffset, true);
+      this.messagePartNumber = buf.getUint32(headerOffset + 4, true);
       headerOffset += 8;
     }
 
     this.packetType = buf.getUint8(headerOffset);
     this.version = buf.getUint8(headerOffset + 1);
-    this.localNodeID = buf.getUint16(headerOffset + 1);
+    this.localNodeID = buf.getUint16(headerOffset + 1, true);
 
     //hmac: new struct.Hex128_t,
     // FIXME - need to read HMAC string for packet verification
@@ -322,17 +330,22 @@ class NLPacket extends struct.define({
   }
   static fromReceivedPacket(data) {
     let nlpacket = new NLPacket();
-    nlpacket.read(data);
+    try {
+      nlpacket.read(data);
+    } catch (e) {
+      console.log('failed to parse packet', nlpacket, data, e);
+    }
     return nlpacket;
   }
   verify(hmac) {
     //let data = this.payload.rawdata; //this.payload.write();
-    let computedhash = hmac.calculateHash(new Uint8Array(this.payload.getData()));
+    let data = this.payload.getDataBytes();
+    let computedhash = hmac.calculateHash(this.payload.getDataBytes());
     //console.log(this.packetName, this.hmac, computedhash, hmac.calculateHash(new Uint8Array(this.payload.write())), this);
     return computedhash == this.hmac;
   }
   writeVerificationHash(hmac) {
-    let newhash = hmac.calculateHash(new Uint8Array(this.payload.getData()));
+    let newhash = hmac.calculateHash(this.payload.getDataBytes());
     this.hmac = newhash;
     return newhash;
   }
@@ -372,8 +385,9 @@ class NLPacket extends struct.define({
             //console.log(obfuscateddata[j], unobfuscateddata[j], xorvalue);
             ++j;
         }
-        super.read(unobfuscateddata.buffer,offset);
-        this.obfuscationlevel = obfuscationlevel;
+        //super.read(unobfuscateddata.buffer,offset);
+        //this.obfuscationlevel = obfuscationlevel;
+        return unobfuscateddata;
         //console.log(this.sequenceNumber, this.flags.control, this.flags.reliable, this.flags.message, this.obfuscationlevel)
     }
   }
@@ -387,6 +401,30 @@ class HifiAddress extends struct.define({
   address: QHostAddress,
   port: new struct.Uint16_t
 }) { };
+
+class ICEPing extends struct.define({
+  uuid: new struct.UUID_t,
+  pingType: new struct.Uint8_t
+}) {
+  static version() { return 18; }
+};
+class ICEPingReply extends struct.define({
+  uuid: new struct.UUID_t,
+  pingType: new struct.Uint8_t
+}) {
+  static version() { return 17; }
+};
+class ProxiedICEPing extends struct.define({
+  pingType: new struct.Uint8_t
+}) {
+};
+class ProxiedICEPingReply extends struct.define({
+  pingType: new struct.Uint8_t
+}) {
+};
+class ProxiedDomainListRequest extends struct.define({
+}) {
+};
 
 class Ping extends struct.define({
   pingType: new struct.Uint8_t,
@@ -409,11 +447,12 @@ class NegotiateAudioFormat extends struct.define({
   size() {
     let len = 1;
     for (let i = 0; i < this.codecs.length; i++) {
-      len += this.codecs[i].length + 4;
+      len += this.codecs[i].length * 2 + 4;
     }
     return len;
   }
   write(data, offset) {
+    this.numberOfCodecs = this.codecs.length;
     if (!data) {
       data = new ArrayBuffer(this.size());
       offset = 0;
@@ -428,6 +467,7 @@ console.log('write codecs', this.codecs);
       idx += str.size(this.codecs[i]);
 console.log(' - ', str, this.codecs[i], idx);
     }
+    return data;
   }
 };
 class SelectedAudioFormat extends struct.define({
@@ -498,21 +538,74 @@ const AvatarDataHasFlags = new Flags([
 ]);
 
 class AvatarData extends struct.define({
-  sequenceId: new struct.Uint16_t,
+  uuid: new struct.UUID_t,
   hasFlags: new struct.Uint16_t,
+  sequenceId: new struct.Uint16_t,
   updates: new struct.StructList_t
 }) {
   static version() { return 44; }
   read(data, offset) {
     let buf = super.read(data, offset);
 
-    console.log('read the avatar updates', this.hasFlags, buf);
+    this.updates = [];
+
+    let hasAvatarGlobalPosition  = this.hasFlag(AvatarDataHasFlags.avatar_global_position),
+        hasAvatarBoundingBox     = this.hasFlag(AvatarDataHasFlags.avatar_bounding_box),
+        hasAvatarOrientation     = this.hasFlag(AvatarDataHasFlags.avatar_orientation),
+        hasAvatarScale           = this.hasFlag(AvatarDataHasFlags.avatar_scale),
+        hasLookAtPosition        = this.hasFlag(AvatarDataHasFlags.look_at_position),
+        hasAudioLoudness         = this.hasFlag(AvatarDataHasFlags.audio_loudness),
+        hasSensorToWorldMatrix   = this.hasFlag(AvatarDataHasFlags.sensor_to_world_matrix),
+        hasAdditionalFlags       = this.hasFlag(AvatarDataHasFlags.additional_flags),
+        hasParentInfo            = this.hasFlag(AvatarDataHasFlags.parent_info),
+        hasAvatarLocalPosition   = this.hasFlag(AvatarDataHasFlags.avatar_local_position),
+        hasFaceTrackerInfo       = this.hasFlag(AvatarDataHasFlags.face_tracker_info),
+        hasJointData             = this.hasFlag(AvatarDataHasFlags.joint_data),
+        hasJointDefaultPoseFlags = this.hasFlag(AvatarDataHasFlags.joint_default_pose_flags),
+        hasGrabJoints            = this.hasFlag(AvatarDataHasFlags.grab_joints);
+
+console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
+  hasAvatarGlobalPosition,
+  hasAvatarBoundingBox,
+  hasAvatarOrientation,
+  hasAvatarScale,
+  hasLookAtPosition,
+  hasAudioLoudness,
+  hasSensorToWorldMatrix,
+  hasAdditionalFlags,
+  hasParentInfo,
+  hasAvatarLocalPosition,
+  hasFaceTrackerInfo,
+  hasJointData,
+  hasJointDefaultPoseFlags,
+  hasGrabJoints
+);
+
+
+    let idx = 18; // sizeof(uuid) + sizeof(uint16_t)
+
+    if (hasAvatarGlobalPosition) idx += this.readAvatarUpdate(data, offset + idx, AvatarGlobalPosition);
+    if (hasAvatarBoundingBox) idx += this.readAvatarUpdate(data, offset + idx, AvatarBoundingBox);
+    if (hasAvatarOrientation) idx += this.readAvatarUpdate(data, offset + idx, AvatarOrientation);
+    if (hasAvatarScale) idx += this.readAvatarUpdate(data, offset + idx, AvatarScale);
+    if (hasLookAtPosition) idx += this.readAvatarUpdate(data, offset + idx, LookAtPosition);
+    if (hasAudioLoudness) idx += this.readAvatarUpdate(data, offset + idx, AudioLoudness);
+    if (hasSensorToWorldMatrix) idx += this.readAvatarUpdate(data, offset + idx, SensorToWorldMatrix);
+    if (hasAdditionalFlags) idx += this.readAvatarUpdate(data, offset + idx, AdditionalFlags);
+    if (hasParentInfo) idx += this.readAvatarUpdate(data, offset + idx, ParentInfo);
+    //if (hasJointData) idx += this.readAvatarUpdate(data, offset + idx, JointData);
+  }
+  readAvatarUpdate(data, offset, type) {
+    let update = new type();
+    update.read(data, offset);
+    this.updates.push(update);
+    return update.size();
   }
   updateFromAvatar(avatar) {
     // https://github.com/highfidelity/hifi/blob/master/libraries/avatars/src/AvatarData.cpp#L239-L822
     // https://github.com/highfidelity/hifi/blob/master/libraries/avatars/src/AvatarData.h#L120-L297
     this.updates = [];
-    this.sequenceId = avatar.sequenceId++;
+    this.uuid = avatar.uuid;
 
     let hasFlags = 0;
     let sendPosition = true,
@@ -526,7 +619,10 @@ class AvatarData extends struct.define({
       this.updates.push(globalpos);
     }
     this.hasFlags = hasFlags;
-  }  
+  }
+  hasFlag(flag) {
+    return (this.hasFlags & flag) == flag
+  }
 };
 
 class AvatarGlobalPosition extends struct.define({
@@ -534,13 +630,56 @@ class AvatarGlobalPosition extends struct.define({
   globalPositionY: new struct.Float_t,
   globalPositionZ: new struct.Float_t
 }) { };
+class AvatarBoundingBox extends struct.define({
+  sizeX: new struct.Float_t,
+  sizeY: new struct.Float_t,
+  sizeZ: new struct.Float_t,
+  originX: new struct.Float_t,
+  originY: new struct.Float_t,
+  originZ: new struct.Float_t
+}) { };
+class AvatarOrientation extends struct.define({
+  orientation: new struct.SixByteQuat_t,
+}) { };
+class AvatarScale extends struct.define({
+  scale: new struct.Uint16_t, // FIXME - the native client uses something called a SmallFloat here, "compressed by packFloatRatioToTwoByte"
+}) { };
+class LookAtPosition extends struct.define({
+  lookAtPositionX: new struct.Float_t,
+  lookAtPositionY: new struct.Float_t,
+  lookAtPositionZ: new struct.Float_t
+}) { };
+class AudioLoudness extends struct.define({
+  audioLoudness: new struct.Uint8_t
+}) { };
+class SensorToWorldMatrix extends struct.define({
+  sensorToWorldQuat: new struct.SixByteQuat_t,
+  sensorToWorldScale: new struct.Uint16_t,
+  sensorToWorldTransX: new struct.Float_t,
+  sensorToWorldTransY: new struct.Float_t,
+  sensorToWorldTransZ: new struct.Float_t,
+}) { };
+class AdditionalFlags extends struct.define({
+  flags: new struct.Uint16_t
+}) { };
+class ParentInfo extends struct.define({
+  parentUUID: new struct.UUID_t,
+  parentJointIndex: new struct.Uint16_t
+}) { };
+class AvatarLocalPosition extends struct.define({
+  localPositionX: new struct.Float_t,
+  localPositionY: new struct.Float_t,
+  localPositionZ: new struct.Float_t
+}) { };
 
 class AvatarIdentity extends struct.define({
   avatarSessionUUID: new struct.UUID_t,
-  identitySequenceNumber: new struct.Uint32_t,
-  attachmentData: new struct.StructList_t,
-  displayName: new struct.String_t,
-  sessionDisplayName: new struct.String_t,
+  identitySequenceNumber: new struct.Uint32BE_t,
+  //attachmentData: new struct.StructList_t,
+  attachmentName: new struct.StringUTF16_t,
+  //attachmentJointName: new struct.StringUTF16_t,
+  displayName: new struct.StringUTF16_t,
+  sessionDisplayName: new struct.StringUTF16_t,
   isReplicated: new struct.Boolean_t,
   lookAtSnappingEnabled: new struct.Boolean_t
 }) {
@@ -551,10 +690,11 @@ class BulkAvatarData extends struct.define({
   avatars: new struct.StructList_t,
 }) {
   read(data, offset) {
-console.log('read bulk avatar!');
     let idx = 0;
+    this.avatars = [];
     while (idx < data.byteLength - offset) {
       let avatar = this.readAvatar(data, offset + idx);
+      this.avatars.push(avatar);
       idx += avatar.size();
       break; // FIXME - just do one avatar for now, until we get AvatarData packet parsing nailed down
     }
@@ -562,10 +702,19 @@ console.log('read bulk avatar!');
   readAvatar(data, offset) {
     let avatar = new AvatarData();
     avatar.read(data, offset);
-console.log(' - avatar data', avatar, offset);
+//console.log(' - avatar data', avatar, offset);
     return avatar;
   }
 };
+class KillAvatar extends struct.define({
+  uuid: new struct.UUID_t,
+  reason: new struct.Uint8_t,
+}) { };
+class SilentAudioFrame extends struct.define({
+  sequence: new struct.Uint16BE_t,
+  codec: new struct.String_t,
+  samples: new struct.Int16BE_t,
+}) { };
 
 var PacketTypeDefs = {
   NLPacket: NLPacket,
@@ -577,6 +726,13 @@ var PacketTypeDefs = {
   AvatarIdentity: AvatarIdentity,
   AvatarData: AvatarData,
   BulkAvatarData: BulkAvatarData,
+  KillAvatar: KillAvatar,
+  SilentAudioFrame: SilentAudioFrame,
+  ICEPing: ICEPing,
+  ICEPingReply: ICEPingReply,
+  ProxiedICEPing: ProxiedICEPing,
+  ProxiedICEPingReply: ProxiedICEPingReply,
+  ProxiedDomainListRequest: ProxiedDomainListRequest,
 };
 
 export function versionForPacketType(packetType) {
@@ -599,6 +755,17 @@ export {
   AvatarIdentity,
   AvatarDataHasFlags,
   AvatarData,
-  AvatarGlobalPosition,
   BulkAvatarData,
+  KillAvatar,
+  SilentAudioFrame,
+  ICEPing,
+  ICEPingReply,
+  ProxiedICEPing,
+  ProxiedICEPingReply,
+  ProxiedDomainListRequest,
+
+  AvatarGlobalPosition,
+  AvatarBoundingBox,
+  AvatarOrientation,
+  AvatarScale,
 };

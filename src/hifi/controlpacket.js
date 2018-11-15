@@ -8,10 +8,18 @@ class ControlPacket extends struct.define({
   controlBitAndType: new struct.Uint32_t,
   //payload: new struct.Struct_t
 }) {
-  read(data, offset) {
-    this.controlBitAndType = data.getUint32(offset);
-    this.controlBit = this.controlBitAndType >> 31 & 1
-    this.type = (this.controlBitAndType & ~CONTROL_BIT_MASK) >> 16;
+  read(data, offset=0) {
+    this._data = data;
+    let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
+    this.controlBitAndType = buf.getUint32(offset, true);
+    this.controlBit = this.controlBitAndType >>> 31 & 1
+    this.type = (this.controlBitAndType & ~CONTROL_BIT_MASK) >>> 16;
+
+    if (ControlPacketClasses[this.type]) {
+      let payloaddata = new Uint8Array(data, offset + 4, data.byteLength - offset - 4);
+      this.payload = new ControlPacketClasses[this.type]();
+      this.payload.read(payloaddata.buffer, payloaddata.byteOffset);
+    }
   }
   write(data, offset) {
     if (!data) {
@@ -20,7 +28,13 @@ class ControlPacket extends struct.define({
     }
     this.controlBitAndType = CONTROL_BIT_MASK | (this.type << 16)
     let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
-    buf.setUint32(0, this.controlBitAndType);
+    buf.setUint32(0, this.controlBitAndType, true);
+
+    this.payload.write(data, offset + this.headerLength);
+
+    this._data = data;
+
+    return data;
   }
   updateControlBitAndType() {
     this.controlBitAndType = CONTROL_BIT_MASK | (this.type << 16)
@@ -33,15 +47,23 @@ class ControlPacket extends struct.define({
     packet.type = type;
     packet.updateControlBitAndType();
 
-    if (packet.type && ControlPacketClasses[packet.type]) {
+    if (ControlPacketClasses[packet.type]) {
       packet.payload = new ControlPacketClasses[packet.type]();
     }
 
-
+    return packet;
+  }
+  static fromReceivedPacket(data) {
+    let packet = new ControlPacket();
+    try {
+      packet.read(data);
+    } catch (e) {
+      console.log('failed to parse packet', packet, data, e);
+    }
     return packet;
   }
 };
-ControlPacket.types = new Flags([
+ControlPacket.types = new Enum([
   'ACK',
   'Handshake',
   'HandshakeACK',
@@ -60,13 +82,11 @@ class HandshakeACKPacket extends struct.define({
 class HandshakeRequestPacket extends struct.define({
 }) { };
 
-const ControlPacketClasses = [
-  null,
-  ACKPacket,
-  HandshakePacket,
-  HandshakeACKPacket,
-  HandshakeRequestPacket
-];
+const ControlPacketClasses = {};
+ControlPacketClasses[ControlPacket.types.ACK] = ACKPacket;
+ControlPacketClasses[ControlPacket.types.Handshake] = HandshakePacket;
+ControlPacketClasses[ControlPacket.types.HandshakeACK] = HandshakeACKPacket;
+ControlPacketClasses[ControlPacket.types.HandshakeRequest] = HandshakeRequestPacket;
 
 export {
   ControlPacket

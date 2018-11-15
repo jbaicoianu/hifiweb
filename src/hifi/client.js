@@ -1,13 +1,15 @@
 import { PacketReceiver } from './packetreceiver.js';
 import { HifiNode, NodeType, NodeTypeMap } from './node.js';
 import { HifiAvatar } from './avatar.js';
+import { HifiAvatarManager } from './avatarmanager.js';
+import { } from '../structviewer.js';
 
 class HifiClient extends EventTarget {
   constructor() {
     super();
 
     this.nodes = {};
-    this.relayserver = 'ws://hifi.janusvr.com:8118';
+    this.relayserver = 'wss://hifirelay.janusvr.com:8119';
     this.domain = 'hifi://janusvr';
 
     this.startTime = new Date().getTime();
@@ -16,7 +18,9 @@ class HifiClient extends EventTarget {
     document.body.appendChild(this.packetdebugger);
     */
 
-    this.avatar = new HifiAvatar();
+    //this.avatar = new HifiAvatar();
+    this.avatars = new HifiAvatarManager();
+    this.avatar = null;
 
     this.connectToRelay();
   }
@@ -100,6 +104,8 @@ class HifiClient extends EventTarget {
         this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.domain }));
 
         nodes.domain.addPacketHandler('DomainList', (packet) => this.handleDomainList(packet));
+        nodes.domain.addPacketHandler('ICEPing', (packet) => this.handleIcePing(packet));
+        nodes.domain.addPacketHandler('ICEPingReply', (packet) => this.handleIcePingReply(packet));
 
         nodes.avatar = new HifiNode(NodeType.AvatarMixer, this.publicSocket);
         nodes.audio = new HifiNode(NodeType.AudioMixer, this.publicSocket);
@@ -179,27 +185,25 @@ class HifiClient extends EventTarget {
     return nlpacket;
   }
   negotiateAudioFormat() {
-    this.nodes.avatar.addPacketHandler('SelectedAudioFormat', (packet) => { console.log('handle selectedaudioformat packet!', packet); debugger; });
+    this.nodes.audio.addPacketHandler('SelectedAudioFormat', (packet) => this.handleSelectedAudioFormat(packet));
 
     let pack = this.nodes.audio.createPacket('NegotiateAudioFormat');
-    pack.payload.numberOfCodecs = 2;
-    pack.payload.codecs = ['pcm', 'zlib'];
-    this.nodes.audio.sendPacket(pack);
+    pack.payload.codecs = ['pcm'];
 console.log('negotiate audio!', pack, pack.hmac);
+    this.nodes.audio.sendPacket(pack);
   }
   startAvatarUpdates() {
     // FIXME - need to register with Entity server?
 
-    // Send AvatarIdentity https://github.com/highfidelity/hifi/blob/db87fe96962fe63c847507ead32a11dad2f0f6ae/libraries/avatars/src/AvatarData.cpp#L1973-L1989
-    let pack = this.nodes.avatar.createPacket('AvatarIdentity');
-    pack.payload.avatarSessionUUID = this.sessionUUID;
-
-    pack.payload.displayName = 'hifiweb';
-    this.nodes.avatar.sendPacket(pack);
+console.log('start avatar updates', this.sessionUUID);
+    this.avatar = this.avatars.newOrExistingAvatar(this.sessionUUID);
+    this.avatar.sendIdentityPacket(this.nodes.avatar);
 
     setInterval(() => this.sendAvatarUpdate(), 20);
 
     this.nodes.avatar.addPacketHandler('BulkAvatarData', (packet) => this.handleBulkAvatarData(packet));
+    this.nodes.avatar.addPacketHandler('AvatarIdentity', (packet) => this.handleAvatarIdentity(packet));
+    this.nodes.avatar.addPacketHandler('KillAvatar', (packet) => this.handleKillAvatar(packet));
   }
   sendAvatarUpdate() {
     if (this.nodes.avatar && this.avatar.hasUpdates) {
@@ -207,7 +211,7 @@ console.log('negotiate audio!', pack, pack.hmac);
       let pack = this.nodes.avatar.createPacket('AvatarData');
       pack.payload.updateFromAvatar(this.avatar);
       this.nodes.avatar.sendPacket(pack);
-//console.log('avatar packet!', pack);
+console.log('avatar packet!', pack);
       this.avatar.clearUpdates();
     }
   }
@@ -223,11 +227,47 @@ console.log('negotiate audio!', pack, pack.hmac);
   setAuthenticatePackets(authenticate) {
     this.authenticate = authenticate;
   }
+  startIcePingTimer() {
+    if (!this.icePingTimer) {
+      this.icePingTimer = setInterval(() => this.sendIcePing(), 1000);
+      this.domainListRequestTimer = setInterval(() => this.sendDomainListRequest(), 1000);
+    }
+  }
+  sendIcePing() {
+    let ping = this.nodes.domain.createPacket('ProxiedICEPing', { pingType: 2 });
+//console.log('proxiedping!', ping);
+    this.nodes.domain.sendPacket(ping);
+  }
+  sendDomainListRequest() {
+    let domainlistrequest = this.nodes.domain.createPacket('ProxiedDomainListRequest', {});
+//console.log('proxieddomainlistrequest!', domainlistrequest);
+    this.nodes.domain.sendPacket(domainlistrequest);
+  }
+  sendIcePingReply(ping) {
+    let pingreply = this.nodes.domain.createPacket('ProxiedICEPingReply', {
+      pingType: ping.pingType
+    });
+//console.log('proxiedpingreply!', pingreply);
+    this.nodes.domain.sendPacket(pingreply);
+  }
+  stopIcePingTimer() {
+    if (this.icePingTimer) {
+      clearTimeout(this.icePingTimer);
+      this.icePingTimer = false;
+    }
+  }
+  handleIcePing(packet) {
+//console.log('ping!', packet);
+    this.sendIcePingReply(packet);
+  }
+  handleIcePingReply(packet) {
+//console.log('pingreply!', packet);
+  }
   handleDomainList(packet) {
     // Based on NodeList::processDomainServerList
     // https://github.com/highfidelity/hifi/blob/master/libraries/networking/src/NodeList.cpp#L616
     this.dispatchEvent(new CustomEvent('receivedDomainServerList'));
-console.log('domain list', packet)
+    //console.log('domain list', packet)
 
     if (this.connected && this.domainHandler.getUUID() != packet.domainUUID) {
       console.warn('IGNORING DomainList packet from ' + packet.domainUUID + ' while connected to ' + this.domainHandler.getUUID());
@@ -258,6 +298,7 @@ console.log('domain list', packet)
       this.connected = true;
       this.dispatchEvent(new CustomEvent('connect'));
       newconnection = true;
+      this.startIcePingTimer();
     }
 
     this.setPermissions(packet.permissions);
@@ -275,11 +316,34 @@ console.log('domain list', packet)
 setTimeout(() => {
       this.startAvatarUpdates();
       this.negotiateAudioFormat();
-}, 5000);
+}, 500);
     }
   }
+  handleAvatarIdentity(packet) {
+//console.log('got avatar identity', packet);
+    this.avatars.processAvatarIdentityPacket(packet);
+  }
   handleBulkAvatarData(packet) {
-console.log('got bulk avatar data', packet.payload);
+//console.log('got bulk avatar data', packet);
+    this.avatars.processAvatarDataPacket(packet);
+  }
+  handleKillAvatar(packet) {
+console.log('got avatar kill', packet);
+    this.avatars.processKillAvatarPacket(packet);
+  }
+  handleSelectedAudioFormat(packet) {
+console.log('got selected audio format', packet);
+return;
+    this.audioSequence = 0;
+    setInterval(() => {
+      console.log('silent audio');
+      let pack = this.nodes.audio.createPacket('SilentAudioFrame');
+      pack.payload.sequence = this.audioSequence++;
+      pack.payload.codec = 'pcm';
+      pack.payload.samples = 480;
+      this.nodes.audio.sendPacket(pack);
+console.log(pack);
+    }, 10);
   }
 };
 

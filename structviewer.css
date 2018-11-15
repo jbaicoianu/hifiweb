@@ -4,16 +4,20 @@ struct-view {
   flex-direction: row;
   font-family: monospace;
   border: 1px solid black;
+  flex-wrap: wrap;
 }
 
 struct-view>div {
   padding: .5em;
+  white-space: nowrap;
 }
 struct-view span.segment {
-  outline: 1px solid black;
+  outline: 1px solid rgba(56,200,56,.5);
 }
 struct-view span.segment.selected {
   outline: 2px solid red;
+  transform-origin: 0 50%;
+  transform: scale(1.1, 1.1);
 }
 struct-view span.segment[title="ethernet"],
 struct-view span.segment[title="ethernetcrc"] {

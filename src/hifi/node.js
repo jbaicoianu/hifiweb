@@ -1,6 +1,7 @@
 import * as packets from './packets.js';
 import { ControlPacket } from './controlpacket.js';
 import { PacketReceiver } from './packetreceiver.js';
+import { Connection } from './connection.js';
 import * as hmac from '../utils/hmac.js';
 import * as uuid from '../utils/uuid.js';
 
@@ -30,10 +31,11 @@ export const NodeType = {
     Unassigned: 1,
 }
 
-export class HifiNode extends EventTarget {
+export class HifiNode extends Connection {
   constructor(type, publicSocket) {
-    super();
+    super(publicSocket);
     this.type = type;
+    this.typeName = NodeTypeMap[type];
     this.uuid = null;
     this.permissions = null;
     this.isReplicated = false;
@@ -50,18 +52,8 @@ export class HifiNode extends EventTarget {
 
     this.addPacketHandler('Ping', (packet) => this.handlePing(packet));
     this.addPacketHandler('PingReply', (packet) => this.handlePingReply(packet));
-console.log('made new node', this);
-
-    // TODO - these should really be in a separate Connection class
-    this.lastReceivedSequenceNumber = -1;
-    this.lossList = [];
-    this.hasReceivedHandshake= false;
-    this.ackPacket = ControlPacket.create(ControlPacket.types.ACK);
 
     //this.startPingTimer();
-  }
-  close() {
-    this.publicSocket.close();
   }
 
   updateNode(node, domainSessionLocalID) {
@@ -74,7 +66,6 @@ console.log('made new node', this);
     //console.log('create packet', type, args, this);
     let nlpacket = new packets.NLPacket({
       packetType: type,
-      version: this.getVersionForType(type),
       localNodeID: this.domainSessionLocalID,
     });
     if (packets[type]) {
@@ -85,54 +76,43 @@ console.log('made new node', this);
     }
     return nlpacket;
   }
-  getVersionForType(type) {
-    return 1;
-  }
   getPacketFromData(data, srcAddr, srcPort) {
-    let isControlPacket = false;
-/*
-    // TODO - handle control packets https://github.com/highfidelity/hifi/blob/061f86e550be711ce49a12ec9cb05ae757851169/libraries/networking/src/udt/Socket.cpp#L373-L383
-
-    let arr = data;
-    let firstUint32 = arr[0] << 24 | arr[1] << 16 | arr[2] << 8 | arr[3];
-    let isControlPacket = & CONTROL_BIT_MASK;
-*/
+    // Detect whether this is a control packet or an NLPacket by looking at the first 4 bytes (NOTE - maybe we only really need one..)
+    let arr32 = new Uint32Array(data, 0, 1);
+    let isControlPacket = arr32[0] >>> 31 & 1;
 
     // https://github.com/highfidelity/hifi/blob/061f86e550be711ce49a12ec9cb05ae757851169/libraries/networking/src/udt/Socket.cpp#L370-L421
     if (isControlPacket) {
+      let packet = ControlPacket.fromReceivedPacket(data);
+      return packet;
     } else {
-    //let nlpacket = new packets.NLPacket();
-    //nlpacket.read(data);
-
-    //console.log(nlpacket, data);
-    //let packet = new HifiPacket({srcAddr: srcAddr,segment: { srcPort: srcPort, payload: data} });
-    //let dt = (new Date().getTime() - this.startTime) / 1000;
-    //document.querySelector('hifi-packetlist').addPacket(packet, false, dt);
-//console.log('BEEP', nlpacket);
-    //this.packetdebugger.add(nlpacket);
       let packet = packets.NLPacket.fromReceivedPacket(data);
+
+      // FIXME - only recording sequenceNumbers for non-obfuscated packets, I think once everything is implemented with ACKs and handshakes it won't be necessary
       if (packet.obfuscationlevel == 0) {
         this.lastReceivedSequenceNumber = packet.sequenceNumber;
       }
       if (packet.isReliable()) {
-        // TODO - the following function sends ACKs, implement it!
-        // https://github.com/highfidelity/hifi/blob/25be635b763506e4a184bc363f5f7c5a6c0f1c78/libraries/networking/src/udt/Connection.cpp#L233-L279
         this.processReceivedSequenceNumber(packet.sequenceNumber);
       }
+
+      /*
+      if (packet.isPartOfMessage()) {
+        this.queueReceivedMessagePacket(packet);
+      }
+      */
 
       return packet;
     }
   }
   processReceivedSequenceNumber(sequenceNumber, packetSize, payloadSize) {
     // Based on https://github.com/highfidelity/hifi/blob/25be635b763506e4a184bc363f5f7c5a6c0f1c78/libraries/networking/src/udt/Connection.cpp#L233
-/* 
-// TODO - relay is handling handshakes right now, but client will handle them soon
+
     if (!this.hasReceivedHandshake) {
       // Refuse to process any packets until we've received the handshake
       this.sendHandshakeRequest();
       return false;
     }
-*/
 
     // mark our last receive time as now (to push the potential expiry farther)
     this.lastReceiveTime = performance.now();
@@ -173,60 +153,32 @@ console.log('made new node', this);
 
     return !wasDuplicate;
   }
-  sendHandshakeRequest() {
-    let handshakeRequestPacket = ControlPacket.create(ControlPacket.types.HandshakeRequest, 0);
-    this.writeBasePacket(handshakeRequestPacket);
-
-    this.didRequestHandshake = true;
-  }
-  sendACK() {
-    let nextACKNumber = this.nextACK();
-
-    // we have received new packets since the last sent ACK
-    // or our congestion control dictates that we always send ACKs
-
-    //this.ackPacket.reset(); // We need to reset it every time.
-
-    // Pack in the ACK number
-    this.ackPacket.sequenceNumber = nextACKNumber;
-console.log('send ack!', nextACKNumber, this.ackPacket);
-    this.writeBasePacket(this.ackPacket);
-
-    //this.stats.record(ConnectionStats::Stats::SentACK);
-  }
-  nextACK() {
-    if (this.lossList.length > 0) {
-      return this.lossList[0] - 1;
-    } else {
-      return this.lastReceivedSequenceNumber;
-    }
-  }
   sendPacket(packet) {
-    packet.sequenceNumber = this.sequenceNumber++;
-    packet.version = packets.versionForPacketType(packet.packetName);
-    //console.log('send packet', this.type, packet.sequenceNumber, packet, this);
-    if (this.authhash) {
-      packet.writeVerificationHash(this.authhash);
+    if (packet instanceof ControlPacket) {
+      this.writeBasePacket(packet);
+    } else if (packet instanceof packets.NLPacket) {
+      packet.sequenceNumber = this.sequenceNumber++;
+      packet.version = packets.versionForPacketType(packet.packetName);
+      //console.log('send packet', this.type, packet.sequenceNumber, packet, this);
+      if (this.authhash) {
+        packet.writeVerificationHash(this.authhash);
+      }
+      if (packet.isReliable()) {
+console.log('send reliable!');
+        this.sendReliablePacket(packet);
+      } else {
+        this.writeBasePacket(packet);
+      }
     }
-    this.writeBasePacket(packet);
-    this.dispatchEvent(new CustomEvent('send', { detail: packet }));
-  }
-  writeBasePacket(packet) {
-    //Encapsulate data with info on the server we are communicating with
-    var p1 = new Uint8Array(1);
-    p1[0] = this.type.charCodeAt(0);
-    var p2 = new Uint8Array(packet.write());
-    var p = new Uint8Array(p1.byteLength + p2.byteLength);
-    p.set(p1, 0);
-    p.set(p2, p1.byteLength);
-    this.publicSocket.send(p);
   }
   handleNodePacket(data) {
     let packet = this.getPacketFromData(data, 'janusvr', NodeTypeMap[this.type]);
     //this.receiver.handlePacket(packet);
     //console.log(NodeTypeMap[this.type], packet.packetName, packet);
     this.dispatchEvent(new CustomEvent('receive', { detail: packet }));
-    if (packet.payload) {
+    if (packet instanceof ControlPacket) {
+      this.processControl(packet);
+    } else if (packet.payload) {
       if (this.authhash) {
         packet.verify(this.authhash)
       }
@@ -259,7 +211,7 @@ console.log('send ack!', nextACKNumber, this.ackPacket);
     }
   }
   addPacketHandler(type, callback) {
-console.log('add handler', type, packets.PacketType[type]);
+    console.log('Add packet handler', type, packets.PacketType[type], this);
     this.packetreceiver.registerListener(packets.PacketType[type], callback);
   }
   setConnectionSecret(secret) {
@@ -274,9 +226,6 @@ console.log('add handler', type, packets.PacketType[type]);
   handlePing(packet) {
 //console.log('ping!', packet);
     this.sendPingReply(packet);
-  }
-  isConnected() {
-    return this.publicSocket.readyState == 'open';
   }
   handlePingReply(packet) {
 //console.log('pingreply!', packet);

@@ -1,3 +1,5 @@
+import { arrayget, arrayset }  from './arraygetset.js';
+
 export class Struct {
   constructor(values) {
     let attrs = this.getAttributes();
@@ -22,9 +24,13 @@ export class Struct {
   }
   getData() {
     if (!this._data) {
-      this._data = this.write();
+      this.write();
     }
     return this._data;
+  }
+  getDataBytes() {
+    let data = this.getData();
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   }
   getValue() {
   }
@@ -49,9 +55,10 @@ export class Struct {
     let attrs = this.getAttributes();
     let idx = 0;
     for (let k in attrs) {
-      attrs[k].write(buf, idx, this[k]);
-      //console.log(' -', k, this[k]);
-      idx += attrs[k].size(this[k]);
+      let val = arrayget(this, k);
+      attrs[k].write(buf, idx, val);
+      //console.log(' -', k, val);
+      idx += attrs[k].size(val);
     }
     return data;
   }
@@ -344,10 +351,10 @@ export class Float_t extends ByteRange_t {
     super(4);
   }
   write(data, offset, value) {
-    data.setFloat32(offset, value);
+    data.setFloat32(offset, value, true);
   }
   read(data, offset) {
-    return data.getFloat32(offset);
+    return data.getFloat32(offset, true);
   }
 };
 export class Double_t extends ByteRange_t {
@@ -386,10 +393,10 @@ export class Char_t extends ByteRange_t {
 export class String_t extends ByteRange_t {
   constructor(length=0) {
     if (typeof length == 'string') {
-      super(length.length);
+      super(length.length + 4);
       this.value = length;
     } else {
-      super(length);
+      super(length + 4);
       this.value = '';
     }
   }
@@ -400,20 +407,73 @@ export class String_t extends ByteRange_t {
     if (!offset) offset = 0;
     if (typeof value != 'string') value = String(value);
 
-    console.log('FIXME - implement String_t.write()', value);
     let length = value.length;
-    data.setUint32(offset, length);
+    data.setUint32(offset, length, true);
     for (let i = 0; i < length; i++) {
       data.setUint8(offset + 4 + i, value.charCodeAt(i));
+      //data.setUint8(offset + 4 + i * 2 + 1, value.charCodeAt(i), true);
     }
   }
   read(data, offset, value) {
-    let length = data.getUint32(offset, true);
-    let bytes = new Uint8Array(length);
-    for (let i = 0; i < length; i++) {
-      bytes[i] = data.getUint8(offset + 4 + i);
+    let byteSize = data.getUint32(offset, true);
+    if (byteSize == 0xfffffff) {
+      return null;
+    } else {
+      let length = byteSize;
+      let bytes = new Uint8Array(length);
+      for (let i = 0; i < length; i++) {
+        bytes[i] = data.getUint8(offset + 4 + i);
+      }
+      return new TextDecoder("utf-8").decode(bytes);
     }
-    return new TextDecoder("utf-8").decode(bytes);
+  }
+};
+export class StringUTF16_t extends ByteRange_t {
+  constructor(length=0) {
+    if (typeof length == 'string') {
+      super(length.length * 2 + 4);
+      this.value = length;
+    } else {
+      super(length * 2 + 4);
+      this.value = '';
+    }
+  }
+  size(value) {
+    return value.length * 2 + 4;
+  }
+  write(data, offset, value) {
+    if (!offset) offset = 0;
+    if (typeof value != 'string') value = String(value);
+
+    let length = value.length;
+    data.setUint32(offset, length * 2, false);
+    for (let i = 0; i < length; i++) {
+      data.setUint16(offset + 4 + i * 2, value.charCodeAt(i), false);
+    }
+  }
+  read(data, offset, value) {
+    let byteSize = data.getUint32(offset, false);
+    if (byteSize == 0xfffffff) {
+      return null;
+    } else {
+      let length = byteSize / 2;
+      let chardata = new Uint16Array(length);
+      for (let i = 0; i < length; i++) {
+        chardata[i] = data.getUint16(offset + 4 + i * 2, false);
+      }
+      return new TextDecoder("utf-16").decode(chardata);
+    }
+  }
+};
+export class SixByteQuat_t extends ByteRange_t {
+  constructor(value) {
+    super(6);
+  }
+  write(data, offset, value) {
+    //data.setUint8(offset, value);
+  }
+  read(data, offset) {
+    //return String.fromCharCode(data.getUint8(offset));
   }
 };
 export class Struct_t extends ByteRange_t {
@@ -463,16 +523,22 @@ console.log('read them', this.value);
 }
 
 export function define(attrs) {
-  console.log('define new struct');
   return class extends Struct {
     getAttributes() {
       let allattrs = {};
       for (let k in attrs) {
-        if (attrs[k] instanceof Struct_t && this[k]) {
-console.log(this, k, attrs[k]);
-          let childattrs = this[k].getAttributes();
+        let val = arrayget(this, k);
+        if (attrs[k] instanceof Struct_t && val) {
+          let childattrs = val.getAttributes();
           for (let j in childattrs) {
-            allattrs[j] = childattrs[j];
+            allattrs[k + '.' + j] = childattrs[j];
+          }
+        } else if (attrs[k] instanceof StructList_t && val) {
+          for (let i = 0; i < val.length; i++) {
+            let childattrs = val[i].getAttributes();
+            for (let j in childattrs) {
+              allattrs[k + '.' + i + '.' + j] = childattrs[j];
+            }
           }
         } else {
           allattrs[k] = attrs[k];
