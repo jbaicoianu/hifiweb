@@ -85,11 +85,11 @@ console.log('avatar identity!', message, this);
     return avatar;
   }
   processAvatarDataPacket(message, sendingNode) {
-    message.avatars.forEach(avatarData => this.parseAvatarData(avatarData, sendingNode));
+    message.updates.forEach(avatarUpdate => this.parseAvatarUpdate(avatarUpdate, sendingNode));
   }
-  parseAvatarData(avatarData, sendingNode) {
-    let avatar = this.newOrExistingAvatar(avatarData.uuid);
-    avatar.processAvatarData(avatarData, sendingNode);
+  parseAvatarUpdate(avatarUpdate, sendingNode) {
+    let avatar = this.newOrExistingAvatar(avatarUpdate.uuid);
+    avatar.processAvatarData(avatarUpdate.avatardata, sendingNode);
   }
   processKillAvatarPacket(killAvatar, sendingNode) {
     let avatar = this.newOrExistingAvatar(killAvatar.uuid);
