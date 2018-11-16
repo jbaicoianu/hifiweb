@@ -241,7 +241,7 @@ console.log('avatar packet!', pack);
     }
   }
   sendDomainListRequest() {
-    if (this.connecteD) {
+    if (this.connected) {
       let domainlistrequest = this.nodes.domain.createPacket('ProxiedDomainListRequest', {});
 //console.log('proxieddomainlistrequest!', domainlistrequest);
       this.nodes.domain.sendPacket(domainlistrequest);
