@@ -442,7 +442,7 @@ class PingReply extends struct.define({
 };
 class NegotiateAudioFormat extends struct.define({
   numberOfCodecs: new struct.Uint8_t,
-  codecs: new struct.StructList_t
+  codecs: new struct.StringList_t
 }) {
   size() {
     let len = 1;
@@ -458,6 +458,7 @@ class NegotiateAudioFormat extends struct.define({
       offset = 0;
     }
     let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
+    this._data = buf;
     buf.setUint8(0, this.numberOfCodecs);
     let idx = 1;
 console.log('write codecs', this.codecs);
@@ -538,9 +539,9 @@ const AvatarDataHasFlags = new Flags([
 ]);
 
 class AvatarData extends struct.define({
-  uuid: new struct.UUID_t,
+  //uuid: new struct.UUID_t,
   hasFlags: new struct.Uint16_t,
-  sequenceId: new struct.Uint16_t,
+  //sequenceId: new struct.Uint16_t,
   updates: new struct.StructList_t
 }) {
   static version() { return 44; }
@@ -593,7 +594,11 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
     if (hasSensorToWorldMatrix) idx += this.readAvatarUpdate(data, offset + idx, SensorToWorldMatrix);
     if (hasAdditionalFlags) idx += this.readAvatarUpdate(data, offset + idx, AdditionalFlags);
     if (hasParentInfo) idx += this.readAvatarUpdate(data, offset + idx, ParentInfo);
-    //if (hasJointData) idx += this.readAvatarUpdate(data, offset + idx, JointData);
+    if (hasAvatarLocalPosition) idx += this.readAvatarUpdate(data, offset + idx, AvatarLocalPosition);
+    if (hasFaceTrackerInfo) idx += this.readAvatarUpdate(data, offset + idx, FaceTrackerInfo);
+    if (hasJointData) idx += this.readAvatarUpdate(data, offset + idx, JointData);
+    if (hasJointDataDefaultPoseFlags) idx += this.readAvatarUpdate(data, offset + idx, JointDataDefaultPoseFlags);
+    if (hasGrabJoints) idx += this.readAvatarUpdate(data, offset + idx, GrabJoints);
   }
   readAvatarUpdate(data, offset, type) {
     let update = new type();
@@ -605,7 +610,7 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
     // https://github.com/highfidelity/hifi/blob/master/libraries/avatars/src/AvatarData.cpp#L239-L822
     // https://github.com/highfidelity/hifi/blob/master/libraries/avatars/src/AvatarData.h#L120-L297
     this.updates = [];
-    this.uuid = avatar.uuid;
+    //this.uuid = avatar.uuid;
 
     let hasFlags = 0;
     let sendPosition = true,
@@ -671,6 +676,49 @@ class AvatarLocalPosition extends struct.define({
   localPositionY: new struct.Float_t,
   localPositionZ: new struct.Float_t
 }) { };
+class FaceTrackerInfo extends struct.define({
+  leftEyeBlink: new struct.Float_t,
+  rightEyeBlink: new struct.Float_t,
+  averageLoudness: new struct.Float_t,
+  browAudioLift: new struct.Float_t,
+  numBlendshapeCoefficients: new struct.Uint8_t
+}) { };
+class JointData extends struct.define({
+  rotationX: new struct.Float_t,
+  rotationY: new struct.Float_t,
+  rotationZ: new struct.Float_t,
+  rotationW: new struct.Float_t,
+  positionX: new struct.Float_t,
+  positionY: new struct.Float_t,
+  positionZ: new struct.Float_t,
+  rotationSet: new struct.Boolean_t,
+  translationSet: new struct.Boolean_t,
+}) { };
+class FarGrabJoints extends struct.define({
+  leftFarGrabPositionX: new struct.Float_t,
+  leftFarGrabPositionY: new struct.Float_t,
+  leftFarGrabPositionZ: new struct.Float_t,
+  leftFarGrabRotationX: new struct.Float_t,
+  leftFarGrabRotationY: new struct.Float_t,
+  leftFarGrabRotationZ: new struct.Float_t,
+  leftFarGrabRotationW: new struct.Float_t,
+
+  rightFarGrabPositionX: new struct.Float_t,
+  rightFarGrabPositionY: new struct.Float_t,
+  rightFarGrabPositionZ: new struct.Float_t,
+  rightFarGrabRotationX: new struct.Float_t,
+  rightFarGrabRotationY: new struct.Float_t,
+  rightFarGrabRotationZ: new struct.Float_t,
+  rightFarGrabRotationW: new struct.Float_t,
+
+  mouseFarGrabPositionX: new struct.Float_t,
+  mouseFarGrabPositionY: new struct.Float_t,
+  mouseFarGrabPositionZ: new struct.Float_t,
+  mouseFarGrabRotationX: new struct.Float_t,
+  mouseFarGrabRotationY: new struct.Float_t,
+  mouseFarGrabRotationZ: new struct.Float_t,
+  mouseFarGrabRotationW: new struct.Float_t,
+}) { };
 
 class AvatarIdentity extends struct.define({
   avatarSessionUUID: new struct.UUID_t,
@@ -687,23 +735,33 @@ class AvatarIdentity extends struct.define({
 };
 
 class BulkAvatarData extends struct.define({
-  avatars: new struct.StructList_t,
+  updates: new struct.StructList_t,
 }) {
   read(data, offset) {
     let idx = 0;
-    this.avatars = [];
+    this.updates = [];
     while (idx < data.byteLength - offset) {
-      let avatar = this.readAvatar(data, offset + idx);
-      this.avatars.push(avatar);
-      idx += avatar.size();
+      let update = this.readAvatarUpdate(data, offset + idx);
+      this.updates.push(update);
+      idx += update.size();
       break; // FIXME - just do one avatar for now, until we get AvatarData packet parsing nailed down
     }
   }
-  readAvatar(data, offset) {
-    let avatar = new AvatarData();
-    avatar.read(data, offset);
+  readAvatarUpdate(data, offset) {
+    let avatarupdate = new BulkAvatarDataUpdate();
+    avatarupdate.read(data, offset);
 //console.log(' - avatar data', avatar, offset);
-    return avatar;
+    return avatarupdate;
+  }
+};
+class BulkAvatarDataUpdate extends struct.define({
+  uuid: new struct.UUID_t,
+  avatardata: new struct.Struct_t,
+}) {
+  read(data, offset) {
+    super.read(data, offset);
+    this.avatardata = new AvatarData();
+    this.avatardata.read(data, offset + 16);
   }
 };
 class KillAvatar extends struct.define({
@@ -768,4 +826,13 @@ export {
   AvatarBoundingBox,
   AvatarOrientation,
   AvatarScale,
+  LookAtPosition,
+  AudioLoudness,
+  SensorToWorldMatrix,
+  AdditionalFlags,
+  ParentInfo,
+  AvatarLocalPosition,
+  FaceTrackerInfo,
+  JointData,
+  FarGrabJoints
 };
