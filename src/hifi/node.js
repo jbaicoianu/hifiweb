@@ -33,16 +33,13 @@ export const NodeType = {
 
 export class HifiNode extends Connection {
   constructor(type, publicSocket) {
-    super(publicSocket);
-    this.type = type;
+    super(type, publicSocket);
     this.typeName = NodeTypeMap[type];
     this.uuid = null;
     this.permissions = null;
     this.isReplicated = false;
     //this.localID = null;
     //this.clientLocalID = null;
-
-    this.publicSocket = publicSocket;
 
     this.connectionSecret = null;
 
