@@ -33,7 +33,7 @@ class HifiClient extends EventTarget {
     this.remoteCandidates = [];
     this.connected = false;
     this.signalserver = new WebSocket(this.relayserver);
-    this.signalserver.addEventListener('close', (ev) => { this.connected = false; });
+    this.signalserver.addEventListener('close', (ev) => { this.connected = false; this.stopIcePingTimer(); });
     this.signalserver.addEventListener('message', (ev) => { this.handleSignalMessage(ev); });
   }
 
@@ -234,26 +234,36 @@ console.log('avatar packet!', pack);
     }
   }
   sendIcePing() {
-    let ping = this.nodes.domain.createPacket('ProxiedICEPing', { pingType: 2 });
+    if (this.connected) {
+      let ping = this.nodes.domain.createPacket('ProxiedICEPing', { pingType: 2 });
 //console.log('proxiedping!', ping);
-    this.nodes.domain.sendPacket(ping);
+      this.nodes.domain.sendPacket(ping);
+    }
   }
   sendDomainListRequest() {
-    let domainlistrequest = this.nodes.domain.createPacket('ProxiedDomainListRequest', {});
+    if (this.connecteD) {
+      let domainlistrequest = this.nodes.domain.createPacket('ProxiedDomainListRequest', {});
 //console.log('proxieddomainlistrequest!', domainlistrequest);
-    this.nodes.domain.sendPacket(domainlistrequest);
+      this.nodes.domain.sendPacket(domainlistrequest);
+    }
   }
   sendIcePingReply(ping) {
-    let pingreply = this.nodes.domain.createPacket('ProxiedICEPingReply', {
-      pingType: ping.pingType
-    });
+    if (this.connected) {
+      let pingreply = this.nodes.domain.createPacket('ProxiedICEPingReply', {
+        pingType: ping.pingType
+      });
 //console.log('proxiedpingreply!', pingreply);
-    this.nodes.domain.sendPacket(pingreply);
+      this.nodes.domain.sendPacket(pingreply);
+    }
   }
   stopIcePingTimer() {
     if (this.icePingTimer) {
       clearTimeout(this.icePingTimer);
       this.icePingTimer = false;
+    }
+    if (this.domainListRequestTimer) {
+      clearTimeout(this.domainListRequestTimer);
+      this.domainListRequestTimer = false;
     }
   }
   handleIcePing(packet) {
