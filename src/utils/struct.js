@@ -470,13 +470,105 @@ export class SixByteQuat_t extends ByteRange_t {
     super(6);
   }
   write(data, offset, value) {
-    //data.setUint8(offset, value);
+    var q = [];
+    q[0] = value.x;
+    q[1] = value.y;
+    q[2] = value.z;
+    q[3] = value.w;
+
+    // find largest component
+    var largestComponent = 0;
+    for (var i = 1; i < 4; i++) {
+        if (Math.abs(q[i]) > Math.abs(q[largestComponent])) {
+            largestComponent = i;
+        }
+    }
+
+    // ensure that the sign of the dropped component is always negative.
+    if (q[largestComponent] > 0.0) {
+      q[0] = -q[0];
+      q[1] = -q[1];
+      q[2] = -q[2];
+      q[3] = -q[3];
+    }
+
+    var MAGNITUDE = 1.0 / Math.sqrt(2.0);
+    var NUM_BITS_PER_COMPONENT = 15;
+    var RANGE = (1 << NUM_BITS_PER_COMPONENT) - 1;
+
+    // quantize the smallest three components into integers
+    var components = [];
+    for (var i = 0, j = 0; i < 4; i++) {
+        if (i != largestComponent) {
+            // transform component into 0..1 range.
+            var value = (q[i] + MAGNITUDE) / (2.0 * MAGNITUDE);
+
+            // quantize 0..1 into 0..range
+            components[j] = (value * RANGE);
+            j++;
+        }
+    }
+
+    // encode the largestComponent into the high bits of the first two components
+    components[0] = (0x7fff & components[0]) | ((0x01 & largestComponent) << 15);
+    components[1] = (0x7fff & components[1]) | ((0x02 & largestComponent) << 14);
+
+    data.setUint8(offset+0, (components[0] >> 8) & 0xff);
+    data.setUint8(offset+1, (components[0]) & 0xff);
+    data.setUint8(offset+2, (components[1] >> 8) & 0xff);
+    data.setUint8(offset+3, (components[1]) & 0xff);
+    data.setUint8(offset+4, (components[2] >> 8) & 0xff);
+    data.setUint8(offset+5, (components[2]) & 0xff);
   }
   read(data, offset) {
-    //return String.fromCharCode(data.getUint8(offset));
+    var components = [];
+
+    components[0] = ((0x7f & data.getUint8(offset+0)) << 8) | data.getUint8(offset+1);
+    components[1] = ((0x7f & data.getUint8(offset+2)) << 8) | data.getUint8(offset+3);
+    components[2] = ((0x7f & data.getUint8(offset+4)) << 8) | data.getUint8(offset+5);
+
+    var largestComponent = ((0x80 & data.getUint8(offset+2)) >> 6) | ((0x80 & data.getUint8(offset+0)) >> 7);
+
+    var NUM_BITS_PER_COMPONENT = 15;
+    var RANGE = (1 << NUM_BITS_PER_COMPONENT) - 1;
+    var MAGNITUDE = 1.0 / Math.sqrt(2.0);
+
+    var floatComponents = [];
+    for (var i = 0; i < 3; i++) {
+      floatComponents[i] = (components[i] / RANGE) * (2.0 * MAGNITUDE) - MAGNITUDE;
+    }
+
+    var missingComponent = -Math.sqrt(1.0 - floatComponents[0] * floatComponents[0] - floatComponents[1] * floatComponents[1] - floatComponents[2] * floatComponents[2]);
+
+    var quatOutput = [];
+    for (var i = 0, j = 0; i < 4; i++) {
+        if (i != largestComponent) {
+            quatOutput[i] = floatComponents[j];
+            j++;
+        } else {
+            quatOutput[i] = missingComponent;
+        }
+    }
+
+    return {x: quatOutput[0], y: quatOutput[1], z: quatOutput[2], w: quatOutput[3]};
   }
 };
 export class Struct_t extends ByteRange_t {
+}
+export class StringList_t {
+  constructor(type) {
+    this.type = type;
+    this.value = [];
+  }
+  size(value) {
+    let size = 0;
+    value.forEach(v => size += 4 + v.length);
+    return size;
+  }
+  read(data, offset) {
+  }
+  write(data, offset, value) {
+  }
 }
 export class StructList_t {
   constructor(type) {
