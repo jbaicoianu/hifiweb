@@ -468,6 +468,7 @@ export class StringUTF16_t extends ByteRange_t {
 export class SixByteQuat_t extends ByteRange_t {
   constructor(value) {
     super(6);
+    this.value = {x: 0, y: 0, z: 0, w: 1};
   }
   write(data, offset, value) {
     var q = [];
