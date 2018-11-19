@@ -595,9 +595,9 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
     if (hasParentInfo) idx += this.readAvatarUpdate(data, offset + idx, ParentInfo);
     if (hasAvatarLocalPosition) idx += this.readAvatarUpdate(data, offset + idx, AvatarLocalPosition);
     if (hasFaceTrackerInfo) idx += this.readAvatarUpdate(data, offset + idx, FaceTrackerInfo);
-    if (hasJointData) idx += this.readAvatarUpdate(data, offset + idx, JointData);
+    //if (hasJointData) idx += this.readAvatarUpdate(data, offset + idx, JointData);
     //if (hasJointDataDefaultPoseFlags) idx += this.readAvatarUpdate(data, offset + idx, JointDataDefaultPoseFlags);
-    if (hasGrabJoints) idx += this.readAvatarUpdate(data, offset + idx, GrabJoints);
+    //if (hasGrabJoints) idx += this.readAvatarUpdate(data, offset + idx, GrabJoints);
   }
   readAvatarUpdate(data, offset, type) {
     let update = new type();
