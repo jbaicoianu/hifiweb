@@ -25,6 +25,11 @@ export class HifiAvatar {
     this.janusobj.pos = this.position;
     this.hasUpdates = true;
   }
+  setOrientation(orientation) {
+    this.orientation.copy(orientation);
+    this.janusobj.orientation.copy(this.orientation);
+    this.hasUpdates = true;
+  }
   clearUpdates() {
     this.hasUpdates = false;
   }
