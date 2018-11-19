@@ -538,13 +538,12 @@ const AvatarDataHasFlags = new Flags([
   'grab_joints'
 ]);
 
-class AvatarData extends struct.define({
+class AvatarDataUpdates extends struct.define({
   //uuid: new struct.UUID_t,
   hasFlags: new struct.Uint16_t,
   //sequenceId: new struct.Uint16_t,
   updates: new struct.StructList_t
 }) {
-  static version() { return 44; }
   read(data, offset) {
     let buf = super.read(data, offset);
 
@@ -583,8 +582,8 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
 );
 
 
-    let idx = 18; // sizeof(uuid) + sizeof(uint16_t)
-
+    //let idx = 18; // sizeof(uuid) + sizeof(uint16_t)
+    let idx = 2; // sizeof(uint16_t)
     if (hasAvatarGlobalPosition) idx += this.readAvatarUpdate(data, offset + idx, AvatarGlobalPosition);
     if (hasAvatarBoundingBox) idx += this.readAvatarUpdate(data, offset + idx, AvatarBoundingBox);
     if (hasAvatarOrientation) idx += this.readAvatarUpdate(data, offset + idx, AvatarOrientation);
@@ -597,7 +596,7 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
     if (hasAvatarLocalPosition) idx += this.readAvatarUpdate(data, offset + idx, AvatarLocalPosition);
     if (hasFaceTrackerInfo) idx += this.readAvatarUpdate(data, offset + idx, FaceTrackerInfo);
     if (hasJointData) idx += this.readAvatarUpdate(data, offset + idx, JointData);
-    if (hasJointDataDefaultPoseFlags) idx += this.readAvatarUpdate(data, offset + idx, JointDataDefaultPoseFlags);
+    //if (hasJointDataDefaultPoseFlags) idx += this.readAvatarUpdate(data, offset + idx, JointDataDefaultPoseFlags);
     if (hasGrabJoints) idx += this.readAvatarUpdate(data, offset + idx, GrabJoints);
   }
   readAvatarUpdate(data, offset, type) {
@@ -617,11 +616,20 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
         sendOrientation = true;
     if (sendPosition) {
       hasFlags |= AvatarDataHasFlags.avatar_global_position;
-      let globalpos = new AvatarGlobalPosition();
-      globalpos.globalPositionX = avatar.position.x;
-      globalpos.globalPositionY = avatar.position.y;
-      globalpos.globalPositionZ = avatar.position.z;
-      this.updates.push(globalpos);
+      let update = new AvatarGlobalPosition();
+      update.globalPositionX = avatar.position.x;
+      update.globalPositionY = avatar.position.y;
+      update.globalPositionZ = avatar.position.z;
+      this.updates.push(update);
+    }
+    if (sendOrientation) {
+      hasFlags |= AvatarDataHasFlags.avatar_orientation;
+      let update = new AvatarOrientation();
+      update.orientation.x = avatar.orientation.x;
+      update.orientation.y = avatar.orientation.y;
+      update.orientation.z = avatar.orientation.z;
+      update.orientation.w = avatar.orientation.w;
+      this.updates.push(update);
     }
     this.hasFlags = hasFlags;
   }
@@ -733,7 +741,19 @@ class AvatarIdentity extends struct.define({
 }) {
   static version() { return 44; }
 };
-
+class AvatarData extends struct.define({
+  avatarDataSequenceNumber: new struct.Uint16_t,
+  avatarData: new struct.Struct_t
+}) {
+  static version() { return 44; }
+  updateFromAvatar(avatar) {
+    if (!this.avatarData) {
+      this.avatarData = new AvatarDataUpdates();
+    }
+    this.avatarDataSequenceNumber = avatar.sequenceId++;
+    this.avatarData.updateFromAvatar(avatar);
+  }
+};
 class BulkAvatarData extends struct.define({
   updates: new struct.StructList_t,
 }) {
@@ -760,7 +780,7 @@ class BulkAvatarDataUpdate extends struct.define({
 }) {
   read(data, offset) {
     super.read(data, offset);
-    this.avatardata = new AvatarData();
+    this.avatardata = new AvatarDataUpdates();
     this.avatardata.read(data, offset + 16);
   }
 };
