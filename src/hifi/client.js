@@ -40,7 +40,8 @@ class HifiClient extends EventTarget {
   connectToDomain(domain) {
     var msg ={
       type: 'domain',
-      domain_name: domain
+      domain_name: domain,
+      username: 'test'
     };
     this.signalserver.send(JSON.stringify(msg));
   }
