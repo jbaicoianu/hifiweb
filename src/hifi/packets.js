@@ -777,7 +777,14 @@ class SilentAudioFrame extends struct.define({
   zeroY: new struct.Float_t,
   zeroZ: new struct.Float_t,
 }) {
-  static version() { return 23; } // Note: Need correct packet version for MixedAudio
+  static version() { return 23; }
+};
+class MixedAudio extends struct.define({
+  sequence: new struct.Uint16_t,
+  codec: new struct.String_t,
+  audiodata: new struct.ByteArray_t,
+}) {
+  static version() { return 23; }
 };
 
 var PacketTypeDefs = {
@@ -792,6 +799,7 @@ var PacketTypeDefs = {
   BulkAvatarData: BulkAvatarData,
   KillAvatar: KillAvatar,
   SilentAudioFrame: SilentAudioFrame,
+  MixedAudio: MixedAudio,
   ICEPing: ICEPing,
   ICEPingReply: ICEPingReply,
   ProxiedICEPing: ProxiedICEPing,
@@ -822,6 +830,7 @@ export {
   BulkAvatarData,
   KillAvatar,
   SilentAudioFrame,
+  MixedAudio,
   ICEPing,
   ICEPingReply,
   ProxiedICEPing,

@@ -613,6 +613,25 @@ console.log('read them', this.value);
 //console.log('total size of structlist:', size);
     
   }
+} 
+export class ByteArray_t {
+  constructor() {
+    this.value = new Uint8Array();
+  }
+  size(value) {
+    //console.log('read mixedaudio length', this.value.byteLength);
+    return this.value.byteLength;
+  }
+  read(data, offset, length) {
+    if (!offset) offset = 0;
+    if (!length) length = data.byteLength - offset;
+    this.value = new Uint8Array(data.buffer, offset, length);
+    //console.log('read mixedaudio', data.buffer, this.value);
+    return this.value;
+  }
+  write(data, offset, value) {
+    //TODO
+  }
 }
 
 export function define(attrs) {

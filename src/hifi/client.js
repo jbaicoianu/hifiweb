@@ -367,8 +367,14 @@ console.log('got selected audio format', packet);
   }
   startSilentAudioTimer() {
     if (!this.silentAudioTimer) {
+      this.nodes.audio.addPacketHandler('SilentAudioFrame', (packet) => this.handleAudio(packet));
+      this.nodes.audio.addPacketHandler('MixedAudio', (packet) => this.handleAudio(packet));
+
       this.silentAudioTimer = setInterval(() => this.sendSilentAudio(), 10);
     }
+  }
+  handleAudio(packet) {
+    console.log('got audio', packet);
   }
   sendSilentAudio() {
     //console.log('silent audio');
@@ -390,7 +396,7 @@ console.log('got selected audio format', packet);
     pack.payload.zeroY = 0;
     pack.payload.zeroZ = 0;
     this.nodes.audio.sendPacket(pack);
-    console.log(pack);
+    //console.log(pack);
   }
 };
 
