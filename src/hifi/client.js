@@ -33,7 +33,7 @@ class HifiClient extends EventTarget {
     this.remoteCandidates = [];
     this.connected = false;
     this.signalserver = new WebSocket(this.relayserver);
-    this.signalserver.addEventListener('close', (ev) => { this.connected = false; this.stopIcePingTimer(); });
+    this.signalserver.addEventListener('close', (ev) => { this.connected = false; this.stopIcePingTimer(); this.stopNegotiateAudioFormatTimer(); this.stopSilentAudioTimer();});
     this.signalserver.addEventListener('message', (ev) => { this.handleSignalMessage(ev); });
   }
 
@@ -41,6 +41,8 @@ class HifiClient extends EventTarget {
     var msg ={
       type: 'domain',
       domain_name: domain
+      //username: 'test',
+      //password: 'test'
     };
     this.signalserver.send(JSON.stringify(msg));
   }
@@ -184,9 +186,13 @@ class HifiClient extends EventTarget {
     document.querySelector('hifi-packetlist').addPacket(packetel, true, dt);
     return nlpacket;
   }
+  startNegotiateAudioFormatTimer() {
+    if (!this.negotiateAudioFormatTimer) {
+      this.nodes.audio.addPacketHandler('SelectedAudioFormat', (packet) => this.handleSelectedAudioFormat(packet));
+      this.negotiateAudioFormatTimer = setInterval(() => this.negotiateAudioFormat(), 250);
+    }
+  }
   negotiateAudioFormat() {
-    this.nodes.audio.addPacketHandler('SelectedAudioFormat', (packet) => this.handleSelectedAudioFormat(packet));
-
     let pack = this.nodes.audio.createPacket('NegotiateAudioFormat');
     pack.payload.codecs = ['pcm'];
 console.log('negotiate audio!', pack, pack.hmac);
@@ -266,6 +272,18 @@ console.log('avatar packet!', pack);
       this.domainListRequestTimer = false;
     }
   }
+  stopNegotiateAudioFormatTimer() {
+    if (this.negotiateAudioFormatTimer) {
+      clearTimeout(this.negotiateAudioFormatTimer);
+      this.negotiateAudioFormatTimer = false;
+    }
+  }
+  stopSilentAudioTimer() {
+    if (this.silentAudioTimer) {
+      clearTimeout(this.silentAudioTimer);
+      this.silentAudioTimer = false;
+    }
+  }
   handleIcePing(packet) {
 //console.log('ping!', packet);
     this.sendIcePingReply(packet);
@@ -325,7 +343,7 @@ console.log('avatar packet!', pack);
     if (newconnection) {
 setTimeout(() => {
       this.startAvatarUpdates();
-      this.negotiateAudioFormat();
+      this.startNegotiateAudioFormatTimer();
 }, 500);
     }
   }
@@ -342,18 +360,43 @@ console.log('got avatar kill', packet);
     this.avatars.processKillAvatarPacket(packet);
   }
   handleSelectedAudioFormat(packet) {
-console.log('got selected audio format', packet);
-return;
+    this.stopNegotiateAudioFormatTimer();
     this.audioSequence = 0;
-    setInterval(() => {
-      console.log('silent audio');
-      let pack = this.nodes.audio.createPacket('SilentAudioFrame');
-      pack.payload.sequence = this.audioSequence++;
-      pack.payload.codec = 'pcm';
-      pack.payload.samples = 480;
-      this.nodes.audio.sendPacket(pack);
-console.log(pack);
-    }, 10);
+console.log('got selected audio format', packet);
+    this.startSilentAudioTimer();
+  }
+  startSilentAudioTimer() {
+    if (!this.silentAudioTimer) {
+      this.nodes.audio.addPacketHandler('SilentAudioFrame', (packet) => this.handleAudio(packet));
+      this.nodes.audio.addPacketHandler('MixedAudio', (packet) => this.handleAudio(packet));
+
+      this.silentAudioTimer = setInterval(() => this.sendSilentAudio(), 10);
+    }
+  }
+  handleAudio(packet) {
+    console.log('got audio', packet);
+  }
+  sendSilentAudio() {
+    //console.log('silent audio');
+    let pack = this.nodes.audio.createPacket('SilentAudioFrame');
+    pack.payload.sequence = this.audioSequence++;
+    pack.payload.codec = 'pcm';
+    pack.payload.samples = 480;
+    pack.payload.positionX = this.avatar.position.x;
+    pack.payload.positionY = this.avatar.position.y;
+    pack.payload.positionZ = this.avatar.position.z;
+    pack.payload.orientationX = this.avatar.orientation.x;
+    pack.payload.orientationY = this.avatar.orientation.y;
+    pack.payload.orientationZ = this.avatar.orientation.z;
+    pack.payload.orientationW = this.avatar.orientation.w;
+    pack.payload.position2X = this.avatar.position.x;
+    pack.payload.position2Y = this.avatar.position.y;
+    pack.payload.position2Z = this.avatar.position.z;
+    pack.payload.zeroX = 0;
+    pack.payload.zeroY = 0;
+    pack.payload.zeroZ = 0;
+    this.nodes.audio.sendPacket(pack);
+    //console.log(pack);
   }
 };
 
