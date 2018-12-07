@@ -625,8 +625,10 @@ export class ByteArray_t {
   read(data, offset, length) {
     if (!offset) offset = 0;
     if (!length) length = data.byteLength - offset;
-    this.value = new Uint8Array(data.buffer, offset, length);
-    //console.log('read mixedaudio', data.buffer, this.value);
+    this.value = new Uint8Array(data.buffer, offset + data.byteOffset, length);
+  //console.log('read mixedaudio data', data);
+  //console.log('read mixedaudio buffer', data.buffer);
+  //console.log('read mixedaudio value', data.buffer, this.value);
     return this.value;
   }
   write(data, offset, value) {
