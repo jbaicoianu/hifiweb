@@ -535,6 +535,7 @@ class AvatarDataUpdates extends struct.define({
         hasJointDefaultPoseFlags = this.hasFlag(AvatarDataHasFlags.joint_default_pose_flags),
         hasGrabJoints            = this.hasFlag(AvatarDataHasFlags.grab_joints);
 
+/*
 console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
   hasAvatarGlobalPosition,
   hasAvatarBoundingBox,
@@ -551,6 +552,7 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
   hasJointDefaultPoseFlags,
   hasGrabJoints
 );
+*/
 
 
     //let idx = 18; // sizeof(uuid) + sizeof(uint16_t)
@@ -778,6 +780,9 @@ class SilentAudioFrame extends struct.define({
   zeroZ: new struct.Float_t,
 }) {
   static version() { return 23; }
+  read() {
+    //console.log('FIXME - reading SilentAudioFrame is very different from writing it');
+  }
 };
 class MixedAudio extends struct.define({
   sequence: new struct.Uint16_t,
