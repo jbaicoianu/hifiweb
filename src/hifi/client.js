@@ -217,7 +217,6 @@ console.log('start avatar updates', this.sessionUUID);
       let pack = this.nodes.avatar.createPacket('AvatarData');
       pack.payload.updateFromAvatar(this.avatar);
       this.nodes.avatar.sendPacket(pack);
-console.log('avatar packet!', pack);
       this.avatar.clearUpdates();
     }
   }
@@ -367,14 +366,17 @@ console.log('got selected audio format', packet);
   }
   startSilentAudioTimer() {
     if (!this.silentAudioTimer) {
-      this.nodes.audio.addPacketHandler('SilentAudioFrame', (packet) => this.handleAudio(packet));
-      this.nodes.audio.addPacketHandler('MixedAudio', (packet) => this.handleAudio(packet));
+      this.nodes.audio.addPacketHandler('SilentAudioFrame', (packet) => this.handleSilentAudio(packet));
+      this.nodes.audio.addPacketHandler('MixedAudio', (packet) => this.handleMixedAudio(packet));
 
       this.silentAudioTimer = setInterval(() => this.sendSilentAudio(), 10);
     }
   }
-  handleAudio(packet) {
-    console.log('got audio', packet);
+  handleSilentAudio(packet) {
+    console.log('got silent audio', packet);
+  }
+  handleMixedAudio(packet) {
+    console.log('mic data', packet);
   }
   sendSilentAudio() {
     //console.log('silent audio');
