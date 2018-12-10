@@ -583,9 +583,7 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
     //this.uuid = avatar.uuid;
 
     let hasFlags = 0;
-    let sendPosition = true,
-        sendOrientation = true;
-    if (sendPosition) {
+    if (avatar.sendPosition) {
       hasFlags |= AvatarDataHasFlags.avatar_global_position;
       let update = new AvatarGlobalPosition();
       update.globalPositionX = avatar.position.x;
@@ -593,7 +591,7 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
       update.globalPositionZ = avatar.position.z;
       this.updates.push(update);
     }
-    if (sendOrientation) {
+    if (avatar.sendOrientation) {
       hasFlags |= AvatarDataHasFlags.avatar_orientation;
       let update = new AvatarOrientation();
       update.orientation.x = avatar.orientation.x;

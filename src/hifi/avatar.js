@@ -24,14 +24,18 @@ export class HifiAvatar {
     this.position.copy(pos);
     this.janusobj.pos = this.position;
     this.hasUpdates = true;
+    this.sendPosition = true;
   }
   setOrientation(orientation) {
     this.orientation.copy(orientation);
     this.janusobj.orientation.copy(this.orientation);
     this.hasUpdates = true;
+    this.sendOrientation = true;
   }
   clearUpdates() {
     this.hasUpdates = false;
+    this.sendPosition = false;
+    this.sendOrientation = false;
   }
   setDisplayName(displayName) {
     this.displayName = displayName;
