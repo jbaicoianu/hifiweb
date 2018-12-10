@@ -251,9 +251,6 @@ class NLPacket extends struct.define({
       this.sequenceNumber;
 
     let fin = super.write(data, offset);
-    if (this.payload) {
-      //this.payload.write(fin, this.headerLength);
-    }
     return fin;
   }
 
@@ -444,32 +441,6 @@ class NegotiateAudioFormat extends struct.define({
   numberOfCodecs: new struct.Uint8_t,
   codecs: new struct.StringList_t
 }) {
-  size() {
-    let len = 1;
-    for (let i = 0; i < this.codecs.length; i++) {
-      len += this.codecs[i].length * 2 + 4;
-    }
-    return len;
-  }
-  write(data, offset) {
-    this.numberOfCodecs = this.codecs.length;
-    if (!data) {
-      data = new ArrayBuffer(this.size());
-      offset = 0;
-    }
-    let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
-    this._data = buf;
-    buf.setUint8(0, this.numberOfCodecs);
-    let idx = 1;
-console.log('write codecs', this.codecs);
-    for (let i = 0; i < this.numberOfCodecs; i++) {
-      let str = new struct.String_t();
-      str.write(buf, idx, this.codecs[i]);
-      idx += str.size(this.codecs[i]);
-console.log(' - ', str, this.codecs[i], idx);
-    }
-    return data;
-  }
 };
 class SelectedAudioFormat extends struct.define({
   codec: new struct.String_t,
@@ -564,6 +535,7 @@ class AvatarDataUpdates extends struct.define({
         hasJointDefaultPoseFlags = this.hasFlag(AvatarDataHasFlags.joint_default_pose_flags),
         hasGrabJoints            = this.hasFlag(AvatarDataHasFlags.grab_joints);
 
+/*
 console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
   hasAvatarGlobalPosition,
   hasAvatarBoundingBox,
@@ -580,6 +552,7 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
   hasJointDefaultPoseFlags,
   hasGrabJoints
 );
+*/
 
 
     //let idx = 18; // sizeof(uuid) + sizeof(uint16_t)
@@ -789,10 +762,35 @@ class KillAvatar extends struct.define({
   reason: new struct.Uint8_t,
 }) { };
 class SilentAudioFrame extends struct.define({
-  sequence: new struct.Uint16BE_t,
+  sequence: new struct.Uint16_t,
   codec: new struct.String_t,
-  samples: new struct.Int16BE_t,
-}) { };
+  samples: new struct.Int16_t,
+  positionX: new struct.Float_t,
+  positionY: new struct.Float_t,
+  positionZ: new struct.Float_t,
+  orientationX: new struct.Float_t,
+  orientationY: new struct.Float_t,
+  orientationZ: new struct.Float_t,
+  orientationW: new struct.Float_t,
+  position2X: new struct.Float_t,
+  position2Y: new struct.Float_t,
+  position2Z: new struct.Float_t,
+  zeroX: new struct.Float_t,
+  zeroY: new struct.Float_t,
+  zeroZ: new struct.Float_t,
+}) {
+  static version() { return 23; }
+  read() {
+    //console.log('FIXME - reading SilentAudioFrame is very different from writing it');
+  }
+};
+class MixedAudio extends struct.define({
+  sequence: new struct.Uint16_t,
+  codec: new struct.String_t,
+  audiodata: new struct.ByteArray_t,
+}) {
+  static version() { return 23; }
+};
 
 var PacketTypeDefs = {
   NLPacket: NLPacket,
@@ -806,6 +804,7 @@ var PacketTypeDefs = {
   BulkAvatarData: BulkAvatarData,
   KillAvatar: KillAvatar,
   SilentAudioFrame: SilentAudioFrame,
+  MixedAudio: MixedAudio,
   ICEPing: ICEPing,
   ICEPingReply: ICEPingReply,
   ProxiedICEPing: ProxiedICEPing,
@@ -836,6 +835,7 @@ export {
   BulkAvatarData,
   KillAvatar,
   SilentAudioFrame,
+  MixedAudio,
   ICEPing,
   ICEPingReply,
   ProxiedICEPing,
