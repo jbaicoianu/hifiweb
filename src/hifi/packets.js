@@ -108,15 +108,13 @@ const PacketType = new Enum([
   'EntityScriptCallMethod',
   'ChallengeOwnershipRequest',
   'ChallengeOwnershipReply',
-
   'OctreeDataFileRequest',
   'OctreeDataFileReply',
   'OctreeDataPersist',
-
   'EntityClone',
   'EntityQueryInitialResultsComplete',
   'BulkAvatarTraits',
-
+  'AudioSoloRequest',
 
   'ProxiedICEPing',
   'ProxiedICEPingReply',
@@ -585,9 +583,7 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
     //this.uuid = avatar.uuid;
 
     let hasFlags = 0;
-    let sendPosition = true,
-        sendOrientation = true;
-    if (sendPosition) {
+    if (avatar.sendPosition) {
       hasFlags |= AvatarDataHasFlags.avatar_global_position;
       let update = new AvatarGlobalPosition();
       update.globalPositionX = avatar.position.x;
@@ -595,7 +591,7 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
       update.globalPositionZ = avatar.position.z;
       this.updates.push(update);
     }
-    if (sendOrientation) {
+    if (avatar.sendOrientation) {
       hasFlags |= AvatarDataHasFlags.avatar_orientation;
       let update = new AvatarOrientation();
       update.orientation.x = avatar.orientation.x;
@@ -712,13 +708,13 @@ class AvatarIdentity extends struct.define({
   isReplicated: new struct.Boolean_t,
   lookAtSnappingEnabled: new struct.Boolean_t
 }) {
-  static version() { return 44; }
+  static version() { return 45; }
 };
 class AvatarData extends struct.define({
   avatarDataSequenceNumber: new struct.Uint16_t,
   avatarData: new struct.Struct_t
 }) {
-  static version() { return 44; }
+  static version() { return 45; }
   updateFromAvatar(avatar) {
     if (!this.avatarData) {
       this.avatarData = new AvatarDataUpdates();
