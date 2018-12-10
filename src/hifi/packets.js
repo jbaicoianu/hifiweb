@@ -108,15 +108,13 @@ const PacketType = new Enum([
   'EntityScriptCallMethod',
   'ChallengeOwnershipRequest',
   'ChallengeOwnershipReply',
-
   'OctreeDataFileRequest',
   'OctreeDataFileReply',
   'OctreeDataPersist',
-
   'EntityClone',
   'EntityQueryInitialResultsComplete',
   'BulkAvatarTraits',
-
+  'AudioSoloRequest',
 
   'ProxiedICEPing',
   'ProxiedICEPingReply',
@@ -712,13 +710,13 @@ class AvatarIdentity extends struct.define({
   isReplicated: new struct.Boolean_t,
   lookAtSnappingEnabled: new struct.Boolean_t
 }) {
-  static version() { return 44; }
+  static version() { return 45; }
 };
 class AvatarData extends struct.define({
   avatarDataSequenceNumber: new struct.Uint16_t,
   avatarData: new struct.Struct_t
 }) {
-  static version() { return 44; }
+  static version() { return 45; }
   updateFromAvatar(avatar) {
     if (!this.avatarData) {
       this.avatarData = new AvatarDataUpdates();
