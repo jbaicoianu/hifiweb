@@ -11,7 +11,19 @@
   </head>
   <body>
     <!-- hifi-client domain="hifi://janusvr"></hifi-client -->
-    <janus-viewer class="hifiweb"></janus-viewer>
+    <!-- janus-viewer class="hifiweb" autostart=false></janus-viewer -->
+
+    <div class="hifilogin">
+      <div class="hifilogo">
+        <img class="logoimage" src="https://highfidelity.com/static-assets/main/logo-image-only-7ae724b98434583fe624a53bd63983094bb2ddda9976ca8d3e348b17c6955e59.svg">
+        <img class="logotext" src="https://highfidelity.com/static-assets/main/logo-text-only-e7116b4cc05ecf1e1442cab9abbf7d6a99ffb9e970b017662640acd838f12834.svg">
+      </div>
+      <div class="loginform">
+        <div>Domain:</div>
+        <div><input name="domain" value="hifi://janusvr"></div>
+        <p><button onclick="elation.janusweb.init()">Log in as Anonymous</button></p>
+      </div>
+    </div>
 
 <fireboxroom>
   <assets>

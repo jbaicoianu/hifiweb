@@ -24,14 +24,18 @@ export class HifiAvatar {
     this.position.copy(pos);
     this.janusobj.pos = this.position;
     this.hasUpdates = true;
+    this.sendPosition = true;
   }
   setOrientation(orientation) {
     this.orientation.copy(orientation);
     this.janusobj.orientation.copy(this.orientation);
     this.hasUpdates = true;
+    this.sendOrientation = true;
   }
   clearUpdates() {
     this.hasUpdates = false;
+    this.sendPosition = false;
+    this.sendOrientation = false;
   }
   setDisplayName(displayName) {
     this.displayName = displayName;
@@ -60,10 +64,10 @@ console.log(this.janusobj, displayName);
       if (update instanceof AvatarGlobalPosition) {
         this.position.set(update.globalPositionX, update.globalPositionY, update.globalPositionZ);
         this.janusobj.pos = this.position;
-console.log(' - new avatar pos', this.position, update, avatarData, this);
+//console.log(' - new avatar pos', this.position, update, avatarData, this);
       }
       if (update instanceof AvatarOrientation) {
-console.log(' - new avatar orientation', update);
+//console.log(' - new avatar orientation', update);
       }
     });
   }
