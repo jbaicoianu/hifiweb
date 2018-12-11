@@ -2,6 +2,7 @@ import { PacketReceiver } from './packetreceiver.js';
 import { HifiNode, NodeType, NodeTypeMap } from './node.js';
 import { HifiAvatar } from './avatar.js';
 import { HifiAvatarManager } from './avatarmanager.js';
+import { VOIP } from '../voip/voip.js';
 import { } from '../structviewer.js';
 
 class HifiClient extends EventTarget {
@@ -21,6 +22,8 @@ class HifiClient extends EventTarget {
     //this.avatar = new HifiAvatar();
     this.avatars = new HifiAvatarManager();
     this.avatar = null;
+
+    this.voip = new VOIP();
 
     this.connectToRelay();
   }
@@ -373,10 +376,11 @@ console.log('got selected audio format', packet);
     }
   }
   handleSilentAudio(packet) {
-    console.log('got silent audio', packet);
+    //console.log('got silent audio', packet);
   }
   handleMixedAudio(packet) {
-    console.log('mic data', packet);
+    //console.log('mic data', packet);
+    this.voip.processVOIPData(packet.audiodata);
   }
   sendSilentAudio() {
     //console.log('silent audio');
