@@ -37,6 +37,7 @@ class HifiClient extends EventTarget {
     this.connected = false;
     this.signalserver = new WebSocket(this.relayserver);
     this.signalserver.addEventListener('close', (ev) => { this.connected = false; this.stopIcePingTimer(); this.stopNegotiateAudioFormatTimer(); this.stopSilentAudioTimer();});
+    this.signalserver.addEventListener('error', (ev) => { this.connected = false; console.log('error!  reconnecting in 1sec...'); setTimeout(() => this.connectToRelay(), 1000); });
     this.signalserver.addEventListener('message', (ev) => { this.handleSignalMessage(ev); });
   }
 
