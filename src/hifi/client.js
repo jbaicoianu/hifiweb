@@ -245,7 +245,6 @@ console.log('start avatar updates', this.sessionUUID);
   sendIcePing() {
     if (this.connected) {
       let ping = this.nodes.domain.createPacket('ProxiedICEPing', { pingType: 2 });
-//console.log('proxiedping!', ping);
       this.nodes.domain.sendPacket(ping);
     }
   }
@@ -261,7 +260,6 @@ console.log('start avatar updates', this.sessionUUID);
       let pingreply = this.nodes.domain.createPacket('ProxiedICEPingReply', {
         pingType: ping.pingType
       });
-//console.log('proxiedpingreply!', pingreply);
       this.nodes.domain.sendPacket(pingreply);
     }
   }
@@ -288,7 +286,6 @@ console.log('start avatar updates', this.sessionUUID);
     }
   }
   handleIcePing(packet) {
-//console.log('ping!', packet);
     this.sendIcePingReply(packet);
   }
   handleIcePingReply(packet) {
