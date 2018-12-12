@@ -582,9 +582,9 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
     this.updates = [];
     //this.uuid = avatar.uuid;
 
-    let hasFlags = 0;
+    this.hasFlags = 0;
     if (avatar.sendPosition) {
-      hasFlags |= AvatarDataHasFlags.avatar_global_position;
+      this.hasFlags |= AvatarDataHasFlags.avatar_global_position;
       let update = new AvatarGlobalPosition();
       update.globalPositionX = avatar.position.x;
       update.globalPositionY = avatar.position.y;
@@ -592,7 +592,7 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
       this.updates.push(update);
     }
     if (avatar.sendOrientation) {
-      hasFlags |= AvatarDataHasFlags.avatar_orientation;
+      this.hasFlags |= AvatarDataHasFlags.avatar_orientation;
       let update = new AvatarOrientation();
       update.orientation.x = avatar.orientation.x;
       update.orientation.y = avatar.orientation.y;
@@ -600,10 +600,9 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
       update.orientation.w = avatar.orientation.w;
       this.updates.push(update);
     }
-    this.hasFlags = hasFlags;
   }
   hasFlag(flag) {
-    return (this.hasFlags & flag) == flag
+    return (this.hasFlags & flag) == flag;
   }
 };
 
@@ -624,7 +623,7 @@ class AvatarOrientation extends struct.define({
   orientation: new struct.SixByteQuat_t,
 }) { };
 class AvatarScale extends struct.define({
-  scale: new struct.Uint16_t, // FIXME - the native client uses something called a SmallFloat here, "compressed by packFloatRatioToTwoByte"
+  scale: new struct.TwoByteFloatRatio_t,
 }) { };
 class LookAtPosition extends struct.define({
   lookAtPositionX: new struct.Float_t,
@@ -696,6 +695,17 @@ class FarGrabJoints extends struct.define({
   mouseFarGrabRotationZ: new struct.Float_t,
   mouseFarGrabRotationW: new struct.Float_t,
 }) { };
+class ConicalViewFrustum extends struct.define({
+  positionX: new struct.Float_t,
+  positionY: new struct.Float_t,
+  positionZ: new struct.Float_t,
+  directionX: new struct.Float_t,
+  directionY: new struct.Float_t,
+  directionZ: new struct.Float_t,
+  angle: new struct.TwoByteFloatAngle_t,
+  clip: new struct.TwoByteClipValue_t,
+  radius: new struct.Float_t,
+}) { };
 
 class AvatarIdentity extends struct.define({
   avatarSessionUUID: new struct.UUID_t,
@@ -757,6 +767,12 @@ class KillAvatar extends struct.define({
   uuid: new struct.UUID_t,
   reason: new struct.Uint8_t,
 }) { };
+class AvatarQuery extends struct.define({
+  numberOfViews: new struct.Uint8_t,
+  views: new struct.StructList_t,
+}) {
+  static version() { return 22; }
+};
 class SilentAudioFrame extends struct.define({
   sequence: new struct.Uint16_t,
   codec: new struct.String_t,
@@ -799,6 +815,7 @@ var PacketTypeDefs = {
   AvatarData: AvatarData,
   BulkAvatarData: BulkAvatarData,
   KillAvatar: KillAvatar,
+  AvatarQuery: AvatarQuery,
   SilentAudioFrame: SilentAudioFrame,
   MixedAudio: MixedAudio,
   ICEPing: ICEPing,
@@ -830,6 +847,7 @@ export {
   AvatarData,
   BulkAvatarData,
   KillAvatar,
+  AvatarQuery,
   SilentAudioFrame,
   MixedAudio,
   ICEPing,
@@ -850,5 +868,6 @@ export {
   AvatarLocalPosition,
   FaceTrackerInfo,
   JointData,
-  FarGrabJoints
+  FarGrabJoints,
+  ConicalViewFrustum
 };

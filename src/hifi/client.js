@@ -1,5 +1,6 @@
 import { PacketReceiver } from './packetreceiver.js';
 import { HifiNode, NodeType, NodeTypeMap } from './node.js';
+import { ConicalViewFrustum } from './packets.js';
 import { HifiAvatar } from './avatar.js';
 import { HifiAvatarManager } from './avatarmanager.js';
 import { } from '../structviewer.js';
@@ -217,6 +218,25 @@ console.log('start avatar updates', this.sessionUUID);
       let pack = this.nodes.avatar.createPacket('AvatarData');
       pack.payload.updateFromAvatar(this.avatar);
       this.nodes.avatar.sendPacket(pack);
+
+      let pack2 = this.nodes.avatar.createPacket('AvatarQuery');
+      pack2.payload.numberOfViews = 1;
+      var views = [];
+      let view = new ConicalViewFrustum();
+      view.positionX =  this.avatar.position.x;
+      view.positionY =  this.avatar.position.y;
+      view.positionz =  this.avatar.position.z;
+      view.directionX =  this.avatar.view_dir.x;
+      view.directionY =  this.avatar.view_dir.y;
+      view.directionZ =  this.avatar.view_dir.z;
+      view.angle = 1.0; //DEFAULT_VIEW_ANGLE
+      view.clip = 100.0; //DEFAULT_VIEW_FAR_CLIP
+      view.radius = 10.0; //DEFAULT_VIEW_RADIUS
+      views.push(view);
+      pack2.payload.views = views;
+      this.nodes.avatar.sendPacket(pack2);
+      console.log(pack2);
+
       this.avatar.clearUpdates();
     }
   }
@@ -340,10 +360,10 @@ console.log('start avatar updates', this.sessionUUID);
       }
     }
     if (newconnection) {
-setTimeout(() => {
-      this.startAvatarUpdates();
-      this.startNegotiateAudioFormatTimer();
-}, 500);
+      setTimeout(() => {
+            this.startAvatarUpdates();
+            this.startNegotiateAudioFormatTimer();
+      }, 500);
     }
   }
   handleAvatarIdentity(packet) {
@@ -373,10 +393,10 @@ console.log('got selected audio format', packet);
     }
   }
   handleSilentAudio(packet) {
-    console.log('got silent audio', packet);
+    //console.log('got silent audio', packet);
   }
   handleMixedAudio(packet) {
-    console.log('mic data', packet);
+    //console.log('mic data', packet);
   }
   sendSilentAudio() {
     //console.log('silent audio');

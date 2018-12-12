@@ -27,6 +27,7 @@ room.registerElement('hificlient', {
     if (this.hifi) {
       let pos = player.pos,
           orientation = player.orientation._target,
+          view_dir = player.view_dir,
           avatar = this.hifi.avatar;
   
       if (avatar) {
@@ -35,6 +36,9 @@ room.registerElement('hificlient', {
         }
         if (!orientation.equals(avatar.orientation)) {
           avatar.setOrientation(orientation);
+        }
+        if (!view_dir.equals(avatar.view_dir)) {
+          avatar.setViewDir(view_dir);
         }
       }
     }

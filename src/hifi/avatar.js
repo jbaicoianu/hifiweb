@@ -5,6 +5,7 @@ export class HifiAvatar {
     this.displayName = 'unknown';
     this.position = new THREE.Vector3();
     this.orientation = new THREE.Quaternion();
+    this.view_dir = new THREE.Quaternion();
     this.clearUpdates();
     this.sequenceId = 0;
 
@@ -31,6 +32,9 @@ export class HifiAvatar {
     this.janusobj.orientation.copy(this.orientation);
     this.hasUpdates = true;
     this.sendOrientation = true;
+  }
+  setViewDir(view_dir) {
+    this.view_dir.copy(view_dir);
   }
   clearUpdates() {
     this.hasUpdates = false;

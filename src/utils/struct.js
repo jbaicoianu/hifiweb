@@ -357,6 +357,84 @@ export class Float_t extends ByteRange_t {
     return data.getFloat32(offset, true);
   }
 };
+export class TwoByteFloatRatio_t extends ByteRange_t {
+  constructor(value) {
+    super(2);
+  }
+  write(data, offset, value) {
+    var SMALL_LIMIT = 10.0;
+    var LARGE_LIMIT = 1000.0;
+    var holder = 0.0;
+    if (value < SMALL_LIMIT) {
+        var SMALL_RATIO_CONVERSION_RATIO = (32767.0 / SMALL_LIMIT); //std::numeric_limits<int16_t>::max()
+        holder = Math.floor(value * SMALL_RATIO_CONVERSION_RATIO);
+    }
+    else {
+        var LARGE_RATIO_CONVERSION_RATIO = (-32768.0 / LARGE_LIMIT); //std::numeric_limits<int16_t>::min()
+        holder = Math.floor((Math.min(value,LARGE_LIMIT) - SMALL_LIMIT) * LARGE_RATIO_CONVERSION_RATIO);
+    }
+    data.setInt16(offset, holder, true);
+  }
+  read(data, offset) {
+    var SMALL_LIMIT = 10.0;
+    var LARGE_LIMIT = 1000.0;
+    var holder = data.getInt16(offset, true);
+    var ratio = 0.0;
+    if (holder > 0) {
+      ratio = (holder / 32767.0) * SMALL_LIMIT; //std::numeric_limits<int16_t>::max()
+    }
+    else {
+      ratio = ((holder / -32768.0) * LARGE_LIMIT) + SMALL_LIMIT;
+    }
+    return ratio;
+  }
+};
+export class TwoByteFloatAngle_t extends ByteRange_t {
+  constructor(value) {
+    super(2);
+  }
+  write(data, offset, value) {
+    var ANGLE_CONVERSION_RATIO = 65535.0 / 360.0; //std::numeric_limits<uint16_t>::max()
+    var angle = Math.floor((value + 180.0)*ANGLE_CONVERSION_RATIO);
+    data.setUint16(offset, angle, true);
+  }
+  read(data, offset) {
+    var angle = data.getUint16(offset, true);
+    var value = (angle / 65535.0) * 360.0 - 180.0; //std::numeric_limits<uint16_t>::max()
+    return value;
+  }
+};
+export class TwoByteClipValue_t extends ByteRange_t {
+  constructor(value) {
+    super(2);
+  }
+  write(data, offset, value) {
+    var SMALL_LIMIT = 10.0;
+    var LARGE_LIMIT = 1000.0;
+    var holder = 0.0;
+    if (value < SMALL_LIMIT) {
+        var SMALL_RATIO_CONVERSION_RATIO = (32767.0 / SMALL_LIMIT); //std::numeric_limits<int16_t>::max()
+        holder = Math.floor(value * SMALL_RATIO_CONVERSION_RATIO);
+    } else {
+        // otherwise we store it as a negative integer
+        holder = -1 * Math.floor(value);
+    }
+    data.setInt16(offset, holder, true);
+  }
+  read(data, offset) {
+    var SMALL_LIMIT = 10.0;
+    var LARGE_LIMIT = 1000.0;
+    var holder = data.getInt16(offset, true);
+    var clipValue = 0.0;
+    if (holder > 0) {
+      clipValue = (holder / 32767.0) * SMALL_LIMIT; //std::numeric_limits<int16_t>::max()
+    }
+    else {
+      clipValue = -1.0 * holder;
+    }
+    return clipValue;
+  }
+};
 export class Double_t extends ByteRange_t {
   constructor(value) {
     super(8);
