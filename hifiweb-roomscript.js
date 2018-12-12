@@ -318,18 +318,22 @@ room.registerElement('hifidebug_packetlog', {
 console.log('new packet log', this.log);
   },
   logSend(packet) {
+/*
     this.log.add({
       dir: 'send',
       time: new Date().getTime(),
       packet: packet
     });
+*/
   },
   logRecv(packet) {
+/*
     this.log.add({
       dir: 'recv',
       time: new Date().getTime(),
       packet: packet
     });
+*/
   },
   showLog() {
     if (!this.window) {

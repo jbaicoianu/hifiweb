@@ -3,6 +3,7 @@ import { HifiNode, NodeType, NodeTypeMap } from './node.js';
 import { ConicalViewFrustum } from './packets.js';
 import { HifiAvatar } from './avatar.js';
 import { HifiAvatarManager } from './avatarmanager.js';
+import { VOIP } from '../voip/voip.js';
 import { } from '../structviewer.js';
 
 class HifiClient extends EventTarget {
@@ -23,6 +24,8 @@ class HifiClient extends EventTarget {
     this.avatars = new HifiAvatarManager();
     this.avatar = null;
 
+    this.voip = new VOIP();
+
     this.connectToRelay();
   }
 
@@ -35,6 +38,7 @@ class HifiClient extends EventTarget {
     this.connected = false;
     this.signalserver = new WebSocket(this.relayserver);
     this.signalserver.addEventListener('close', (ev) => { this.connected = false; this.stopIcePingTimer(); this.stopNegotiateAudioFormatTimer(); this.stopSilentAudioTimer();});
+    this.signalserver.addEventListener('error', (ev) => { this.connected = false; console.log('error!  reconnecting in 1sec...'); setTimeout(() => this.connectToRelay(), 1000); });
     this.signalserver.addEventListener('message', (ev) => { this.handleSignalMessage(ev); });
   }
 
@@ -261,7 +265,6 @@ console.log('start avatar updates', this.sessionUUID);
   sendIcePing() {
     if (this.connected) {
       let ping = this.nodes.domain.createPacket('ProxiedICEPing', { pingType: 2 });
-//console.log('proxiedping!', ping);
       this.nodes.domain.sendPacket(ping);
     }
   }
@@ -277,7 +280,6 @@ console.log('start avatar updates', this.sessionUUID);
       let pingreply = this.nodes.domain.createPacket('ProxiedICEPingReply', {
         pingType: ping.pingType
       });
-//console.log('proxiedpingreply!', pingreply);
       this.nodes.domain.sendPacket(pingreply);
     }
   }
@@ -304,7 +306,6 @@ console.log('start avatar updates', this.sessionUUID);
     }
   }
   handleIcePing(packet) {
-//console.log('ping!', packet);
     this.sendIcePingReply(packet);
   }
   handleIcePingReply(packet) {
@@ -397,6 +398,7 @@ console.log('got selected audio format', packet);
   }
   handleMixedAudio(packet) {
     //console.log('mic data', packet);
+    this.voip.processVOIPData(packet.audiodata);
   }
   sendSilentAudio() {
     //console.log('silent audio');

@@ -1,3 +1,33 @@
+body {
+  background: black;
+}
+.hifilogo {
+  height: 20em;
+  display: block;
+}
+.logoimage {
+  display: block;
+}
+.logotext {
+  display: block;
+  margin-top: 40px;
+}
+.hifilogin {
+  width: 50%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+.loginform {
+  border: 1px solid #0ff;
+  border-radius: 2em;
+  background: #00b4ef44;
+  width: 80%;
+  height: 10em;
+  margin: 0 auto;
+  padding: 2em;
+  color: white;
+}
 hifi-packetlist {
   display: block;
   height: 60em;
