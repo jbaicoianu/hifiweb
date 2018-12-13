@@ -280,7 +280,7 @@ console.log('pause', k, this.children[k]);
     } else {
       color = V(0,1,0);
     }
-    particles.setPoint(num, V(-.02 + Math.random() / 50,0,-.035 + Math.random() / 50), V(0, -2, 0), V(0,0,0), color);
+    particles.setPoint(num, V(-.02 + Math.random() / 50,-Math.random() / 5,-.035 + Math.random() / 50), V(0, -2, 0), V(0,0,0), color);
     setTimeout(() => { particles.setPoint(num, V(0, -9999, 0)); }, 400);
   },
   handleSend(ev) {
@@ -298,7 +298,7 @@ console.log('pause', k, this.children[k]);
     } else {
       color = V(1,.5,0);
     }
-    particles.setPoint(num, V(.02 + Math.random() / 50,-.85,-.035 + Math.random() / 50), V(0, 2, 0), V(0,0,0), color);
+    particles.setPoint(num, V(.02 + Math.random() / 50,-.85 + Math.random() / 5,-.035 + Math.random() / 50), V(0, 2, 0), V(0,0,0), color);
     setTimeout(() => { particles.setPoint(num, V(0, -9999, 0)); }, 400);
   },
   handleClick(ev) {
