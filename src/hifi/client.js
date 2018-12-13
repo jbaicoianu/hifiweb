@@ -379,6 +379,27 @@ console.log('got selected audio format', packet);
   handleMixedAudio(packet) {
     //console.log('mic data', packet);
     this.voip.processVOIPData(packet.audiodata);
+
+    /*let pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
+    pack.payload.sequence = this.audioSequence++;
+    pack.payload.codec = 'pcm';
+    pack.payload.channels = 1;
+    pack.payload.positionX = this.avatar.position.x;
+    pack.payload.positionY = this.avatar.position.y;
+    pack.payload.positionZ = this.avatar.position.z;
+    pack.payload.orientationX = this.avatar.orientation.x;
+    pack.payload.orientationY = this.avatar.orientation.y;
+    pack.payload.orientationZ = this.avatar.orientation.z;
+    pack.payload.orientationW = this.avatar.orientation.w;
+    pack.payload.position2X = this.avatar.position.x;
+    pack.payload.position2Y = this.avatar.position.y;
+    pack.payload.position2Z = this.avatar.position.z;
+    pack.payload.zeroX = 0;
+    pack.payload.zeroY = 0;
+    pack.payload.zeroZ = 0;
+    pack.payload.audiodata = packet.audiodata;
+    this.nodes.audio.sendPacket(pack);
+    console.log("echo", pack);*/
   }
   sendSilentAudio() {
     //console.log('silent audio');
