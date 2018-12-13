@@ -403,7 +403,7 @@ export class String_t extends ByteRange_t {
   size(value) {
     return value.length + 4;
   }
-  write(data, offset, value) {
+  static write(data, offset, value) {
     if (!offset) offset = 0;
     if (typeof value != 'string') value = String(value);
 
@@ -562,13 +562,19 @@ export class StringList_t {
     this.value = [];
   }
   size(value) {
-    let size = 0;
+    let size = 1;
     value.forEach(v => size += 4 + v.length);
     return size;
   }
   read(data, offset) {
   }
   write(data, offset, value) {
+    let num = value.length;
+    data.setUint8(offset, num);
+    let stroffset = offset + 1;
+    for (let i = 0; i < num; i++) {
+      String_t.write(data, stroffset, value[i]);
+    }
   }
 }
 export class StructList_t {
