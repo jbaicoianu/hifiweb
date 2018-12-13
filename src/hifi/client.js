@@ -13,6 +13,14 @@ class HifiClient extends EventTarget {
     this.relayserver = 'wss://hifirelay.janusvr.com:8119';
     this.domain = 'hifi://janusvr';
 
+    // Read domain from input, if specified
+    // TODO - this should just be an argument when starting he client
+    let domaininput = document.getElementById('domaininput');
+    if (domaininput && domaininput.value) {
+      this.domain = domaininput.value;
+    }
+
+
     this.startTime = new Date().getTime();
     /*
     this.packetdebugger = document.createElement('struct-viewer');
