@@ -625,20 +625,32 @@ export class ByteArray_t {
     this.value = new Uint8Array();
   }
   size(value) {
-    //console.log('read mixedaudio length', this.value.byteLength);
-    return this.value.byteLength;
+    return value.byteLength;
   }
   read(data, offset, length) {
     if (!offset) offset = 0;
     if (!length) length = data.byteLength - offset;
     this.value = new Uint8Array(data.buffer, offset + data.byteOffset, length);
-  //console.log('read mixedaudio data', data);
-  //console.log('read mixedaudio buffer', data.buffer);
-  //console.log('read mixedaudio value', data.buffer, this.value);
     return this.value;
   }
   write(data, offset, value) {
-    //TODO
+    if (!offset) offset = 0;
+    if (!length) length = data.byteLength - offset;
+    let bytes = value;
+    if (value instanceof Uint16Array ||
+        value instanceof Int16Array ||
+        value instanceof Uint32Array ||
+        value instanceof Int32Array ||
+        value instanceof Float32Array ||
+        value instanceof Float64Array
+    ) {
+      bytes = new Uint8Array(value.buffer);
+    } else if (value instanceof ArrayBuffer) {
+      bytes = new Uint8Array(value);
+    }
+    for (let i = 0; i < bytes.byteLength; i++) {
+      data.setUint8(offset + i, bytes[i]);
+    }
   }
 }
 
