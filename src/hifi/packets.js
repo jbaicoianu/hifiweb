@@ -786,6 +786,27 @@ class MixedAudio extends struct.define({
 }) {
   static version() { return 23; }
 };
+class MicrophoneAudioNoEcho extends struct.define({
+  sequence: new struct.Uint16_t,
+  codec: new struct.String_t,
+  channelFlag: new struct.Boolean_t,
+  positionX: new struct.Float_t,
+  positionY: new struct.Float_t,
+  positionZ: new struct.Float_t,
+  orientationX: new struct.Float_t,
+  orientationY: new struct.Float_t,
+  orientationZ: new struct.Float_t,
+  orientationW: new struct.Float_t,
+  boundingBoxCornerX: new struct.Float_t,
+  boundingBoxCornerY: new struct.Float_t,
+  boundingBoxCornerZ: new struct.Float_t,
+  boundingBoxScaleX: new struct.Float_t,
+  boundingBoxScaleY: new struct.Float_t,
+  boundingBoxScaleZ: new struct.Float_t,
+  audiodata: new struct.ByteArray_t
+}) {
+  static version() { return 23; }
+};
 
 var PacketTypeDefs = {
   NLPacket: NLPacket,
@@ -830,6 +851,7 @@ export {
   BulkAvatarData,
   KillAvatar,
   SilentAudioFrame,
+  MicrophoneAudioNoEcho,
   MixedAudio,
   ICEPing,
   ICEPingReply,
