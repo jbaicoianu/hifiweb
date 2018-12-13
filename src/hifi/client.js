@@ -405,9 +405,9 @@ console.log('got selected audio format', packet);
     pack.payload.position2X = this.avatar.position.x;
     pack.payload.position2Y = this.avatar.position.y;
     pack.payload.position2Z = this.avatar.position.z;
-    pack.payload.zeroX = 1;
-    pack.payload.zeroY = 1;
-    pack.payload.zeroZ = 1;
+    pack.payload.zeroX = 0;
+    pack.payload.zeroY = 0;
+    pack.payload.zeroZ = 0;
     this.nodes.audio.sendPacket(pack);
     //console.log(pack);
   }
@@ -420,7 +420,6 @@ console.log('got selected audio format', packet);
     pack.payload.sequence = this.audioSequence++;
     pack.payload.codec = 'pcm';
     pack.payload.channelFlag = 1;
-    pack.payload.samples = pcm16.length / 2;
     pack.payload.positionX = this.avatar.position.x;
     pack.payload.positionY = this.avatar.position.y;
     pack.payload.positionZ = this.avatar.position.z;
@@ -431,12 +430,13 @@ console.log('got selected audio format', packet);
     pack.payload.boundingBoxCornerX = this.avatar.position.x;
     pack.payload.boundingBoxCornerY = this.avatar.position.y;
     pack.payload.boundingBoxCornerZ = this.avatar.position.z;
-    pack.payload.boundingBoxScaleX = 1;
-    pack.payload.boundingBoxScaleY = 1;
-    pack.payload.boundingBoxScaleZ = 1;
-
+    pack.payload.boundingBoxScaleX = 0;
+    pack.payload.boundingBoxScaleY = 0;
+    pack.payload.boundingBoxScaleZ = 0;
     pack.payload.audiodata = pcm16;
-    //this.nodes.audio.sendPacket(pack);
+
+    this.nodes.audio.sendPacket(pack);
+    console.log("voip", pack)
   }
 };
 
