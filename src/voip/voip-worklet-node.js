@@ -1,9 +1,9 @@
 export class VOIPWorkletNode extends AudioWorkletNode {
-  constructor(context) {
-    super(context, 'voip-worklet-processor');
+  constructor(context, processor) {
+    super(context, processor);
   }
   processVOIPData(data) {
-    this.port.postMessage(data, [data.buffer]);
+    this.port.postMessage(data);
   }
 }
 
