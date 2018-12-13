@@ -797,15 +797,6 @@ class MicrophoneAudioNoEcho extends struct.define({
   orientationY: new struct.Float_t,
   orientationZ: new struct.Float_t,
   orientationW: new struct.Float_t,
-<<<<<<< HEAD
-  position2X: new struct.Float_t,
-  position2Y: new struct.Float_t,
-  position2Z: new struct.Float_t,
-  zeroX: new struct.Float_t,
-  zeroY: new struct.Float_t,
-  zeroZ: new struct.Float_t,
-  audiodata: new struct.ByteArray_t,
-=======
   boundingBoxCornerX: new struct.Float_t,
   boundingBoxCornerY: new struct.Float_t,
   boundingBoxCornerZ: new struct.Float_t,
@@ -813,7 +804,6 @@ class MicrophoneAudioNoEcho extends struct.define({
   boundingBoxScaleY: new struct.Float_t,
   boundingBoxScaleZ: new struct.Float_t,
   audiodata: new struct.ByteArray_t
->>>>>>> jbaicoianu/master
 }) {
   static version() { return 23; }
 };
