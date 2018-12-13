@@ -13,6 +13,14 @@ class HifiClient extends EventTarget {
     this.relayserver = 'wss://hifirelay.janusvr.com:8119';
     this.domain = 'hifi://janusvr';
 
+    // Read domain from input, if specified
+    // TODO - this should just be an argument when starting he client
+    let domaininput = document.getElementById('domaininput');
+    if (domaininput && domaininput.value) {
+      this.domain = domaininput.value;
+    }
+
+
     this.startTime = new Date().getTime();
     /*
     this.packetdebugger = document.createElement('struct-viewer');
@@ -24,6 +32,7 @@ class HifiClient extends EventTarget {
     this.avatar = null;
 
     this.voip = new VOIP();
+    this.voip.addEventListener('voipdata', (ev) => this.handleVOIPData(ev));
 
     this.connectToRelay();
   }
@@ -379,27 +388,6 @@ console.log('got selected audio format', packet);
   handleMixedAudio(packet) {
     //console.log('mic data', packet);
     this.voip.processVOIPData(packet.audiodata);
-
-    /*let pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
-    pack.payload.sequence = this.audioSequence++;
-    pack.payload.codec = 'pcm';
-    pack.payload.channels = 1;
-    pack.payload.positionX = this.avatar.position.x;
-    pack.payload.positionY = this.avatar.position.y;
-    pack.payload.positionZ = this.avatar.position.z;
-    pack.payload.orientationX = this.avatar.orientation.x;
-    pack.payload.orientationY = this.avatar.orientation.y;
-    pack.payload.orientationZ = this.avatar.orientation.z;
-    pack.payload.orientationW = this.avatar.orientation.w;
-    pack.payload.position2X = this.avatar.position.x;
-    pack.payload.position2Y = this.avatar.position.y;
-    pack.payload.position2Z = this.avatar.position.z;
-    pack.payload.zeroX = 0;
-    pack.payload.zeroY = 0;
-    pack.payload.zeroZ = 0;
-    pack.payload.audiodata = packet.audiodata;
-    this.nodes.audio.sendPacket(pack);
-    console.log("echo", pack);*/
   }
   sendSilentAudio() {
     //console.log('silent audio');
@@ -417,11 +405,38 @@ console.log('got selected audio format', packet);
     pack.payload.position2X = this.avatar.position.x;
     pack.payload.position2Y = this.avatar.position.y;
     pack.payload.position2Z = this.avatar.position.z;
-    pack.payload.zeroX = 0;
-    pack.payload.zeroY = 0;
-    pack.payload.zeroZ = 0;
+    pack.payload.zeroX = 1;
+    pack.payload.zeroY = 1;
+    pack.payload.zeroZ = 1;
     this.nodes.audio.sendPacket(pack);
     //console.log(pack);
+  }
+  handleVOIPData(ev) {
+    // TODO - this should be combined with the above function, and we'd pick the right packet type based on the presence of mic data
+    if (!this.nodes.audio || !this.avatar) return;
+    let pcm16 = ev.detail;
+    let pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
+
+    pack.payload.sequence = this.audioSequence++;
+    pack.payload.codec = 'pcm';
+    pack.payload.channelFlag = 1;
+    pack.payload.samples = pcm16.length / 2;
+    pack.payload.positionX = this.avatar.position.x;
+    pack.payload.positionY = this.avatar.position.y;
+    pack.payload.positionZ = this.avatar.position.z;
+    pack.payload.orientationX = this.avatar.orientation.x;
+    pack.payload.orientationY = this.avatar.orientation.y;
+    pack.payload.orientationZ = this.avatar.orientation.z;
+    pack.payload.orientationW = this.avatar.orientation.w;
+    pack.payload.boundingBoxCornerX = this.avatar.position.x;
+    pack.payload.boundingBoxCornerY = this.avatar.position.y;
+    pack.payload.boundingBoxCornerZ = this.avatar.position.z;
+    pack.payload.boundingBoxScaleX = 1;
+    pack.payload.boundingBoxScaleY = 1;
+    pack.payload.boundingBoxScaleZ = 1;
+
+    pack.payload.audiodata = pcm16;
+    //this.nodes.audio.sendPacket(pack);
   }
 };
 

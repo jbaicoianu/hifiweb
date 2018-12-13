@@ -436,7 +436,6 @@ class PingReply extends struct.define({
 }) {
 };
 class NegotiateAudioFormat extends struct.define({
-  numberOfCodecs: new struct.Uint8_t,
   codecs: new struct.StringList_t
 }) {
 };
@@ -790,7 +789,7 @@ class MixedAudio extends struct.define({
 class MicrophoneAudioNoEcho extends struct.define({
   sequence: new struct.Uint16_t,
   codec: new struct.String_t,
-  channels: new struct.Uint8_t, // Should be 0 (mono)
+  channelFlag: new struct.Boolean_t,
   positionX: new struct.Float_t,
   positionY: new struct.Float_t,
   positionZ: new struct.Float_t,
@@ -798,6 +797,7 @@ class MicrophoneAudioNoEcho extends struct.define({
   orientationY: new struct.Float_t,
   orientationZ: new struct.Float_t,
   orientationW: new struct.Float_t,
+<<<<<<< HEAD
   position2X: new struct.Float_t,
   position2Y: new struct.Float_t,
   position2Z: new struct.Float_t,
@@ -805,6 +805,15 @@ class MicrophoneAudioNoEcho extends struct.define({
   zeroY: new struct.Float_t,
   zeroZ: new struct.Float_t,
   audiodata: new struct.ByteArray_t,
+=======
+  boundingBoxCornerX: new struct.Float_t,
+  boundingBoxCornerY: new struct.Float_t,
+  boundingBoxCornerZ: new struct.Float_t,
+  boundingBoxScaleX: new struct.Float_t,
+  boundingBoxScaleY: new struct.Float_t,
+  boundingBoxScaleZ: new struct.Float_t,
+  audiodata: new struct.ByteArray_t
+>>>>>>> jbaicoianu/master
 }) {
   static version() { return 23; }
 };
@@ -853,6 +862,7 @@ export {
   BulkAvatarData,
   KillAvatar,
   SilentAudioFrame,
+  MicrophoneAudioNoEcho,
   MixedAudio,
   MicrophoneAudioNoEcho,
   ICEPing,

@@ -403,7 +403,7 @@ export class String_t extends ByteRange_t {
   size(value) {
     return value.length + 4;
   }
-  write(data, offset, value) {
+  static write(data, offset, value) {
     if (!offset) offset = 0;
     if (typeof value != 'string') value = String(value);
 
@@ -562,13 +562,19 @@ export class StringList_t {
     this.value = [];
   }
   size(value) {
-    let size = 0;
+    let size = 1;
     value.forEach(v => size += 4 + v.length);
     return size;
   }
   read(data, offset) {
   }
   write(data, offset, value) {
+    let num = value.length;
+    data.setUint8(offset, num);
+    let stroffset = offset + 1;
+    for (let i = 0; i < num; i++) {
+      String_t.write(data, stroffset, value[i]);
+    }
   }
 }
 export class StructList_t {
@@ -629,11 +635,21 @@ export class ByteArray_t {
   }
   write(data, offset, value) {
     if (!offset) offset = 0;
-    console.log("echovalue", data, offset);
-    if (value) {
-      for (let i = 0; i < value.byteLength; i++) {
-        data.setUint8(offset + i, value[i]);
-      }
+    if (!length) length = data.byteLength - offset;
+    let bytes = value;
+    if (value instanceof Uint16Array ||
+        value instanceof Int16Array ||
+        value instanceof Uint32Array ||
+        value instanceof Int32Array ||
+        value instanceof Float32Array ||
+        value instanceof Float64Array
+    ) {
+      bytes = new Uint8Array(value.buffer);
+    } else if (value instanceof ArrayBuffer) {
+      bytes = new Uint8Array(value);
+    }
+    for (let i = 0; i < bytes.byteLength; i++) {
+      data.setUint8(offset + i, bytes[i]);
     }
   }
 }

@@ -19,7 +19,7 @@ export class RingBuffer {
   read(array, length=Infinity, writeoffset=0) {
     if (length == Infinity) {
       // Infinite length means just read any and all data which has been written to this buffer
-      length = (this.writeoffset + this.size - this.readoffet) % this.size;
+      length = this.length();
     }
 
     for (let i = 0; i < length; i++) {
@@ -28,5 +28,8 @@ export class RingBuffer {
       this.buffer[readoffset] = 0;
     }
     this.readoffset = (this.readoffset + length) % this.size;
+  }
+  length() {
+    return parseInt(this.writeoffset + this.size - this.readoffset) % parseInt(this.size);
   }
 }
