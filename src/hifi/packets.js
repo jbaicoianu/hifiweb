@@ -862,7 +862,6 @@ export {
   BulkAvatarData,
   KillAvatar,
   SilentAudioFrame,
-  MicrophoneAudioNoEcho,
   MixedAudio,
   MicrophoneAudioNoEcho,
   ICEPing,
