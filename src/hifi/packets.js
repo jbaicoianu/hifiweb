@@ -436,7 +436,6 @@ class PingReply extends struct.define({
 }) {
 };
 class NegotiateAudioFormat extends struct.define({
-  numberOfCodecs: new struct.Uint8_t,
   codecs: new struct.StringList_t
 }) {
 };
