@@ -387,6 +387,27 @@ console.log('got selected audio format', packet);
   }
   handleMixedAudio(packet) {
     //console.log('mic data', packet);
+
+    /*let pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
+    pack.payload.sequence = this.audioSequence++;
+    pack.payload.codec = '';
+    pack.payload.channelFlag = 1;
+    pack.payload.positionX = this.avatar.position.x;
+    pack.payload.positionY = this.avatar.position.y;
+    pack.payload.positionZ = this.avatar.position.z;
+    pack.payload.orientationX = this.avatar.orientation.x;
+    pack.payload.orientationY = this.avatar.orientation.y;
+    pack.payload.orientationZ = this.avatar.orientation.z;
+    pack.payload.orientationW = this.avatar.orientation.w;
+    pack.payload.boundingBoxCornerX = this.avatar.position.x;
+    pack.payload.boundingBoxCornerY = this.avatar.position.y;
+    pack.payload.boundingBoxCornerZ = this.avatar.position.z;
+    pack.payload.boundingBoxScaleX = 0;
+    pack.payload.boundingBoxScaleY = 0;
+    pack.payload.boundingBoxScaleZ = 0;
+    pack.payload.audioData = packet.audioData;
+    this.nodes.audio.sendPacket(pack);*/
+
     this.voip.processVOIPData(packet.audioData);
   }
   sendSilentAudio() {
@@ -416,9 +437,8 @@ console.log('got selected audio format', packet);
     if (!this.nodes.audio || !this.avatar) return;
     let pcm16 = ev.detail;
     let pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
-
     pack.payload.sequence = this.audioSequence++;
-    pack.payload.codec = 'pcm';
+    pack.payload.codec = '';
     pack.payload.channelFlag = 1;
     pack.payload.positionX = this.avatar.position.x;
     pack.payload.positionY = this.avatar.position.y;
@@ -434,9 +454,8 @@ console.log('got selected audio format', packet);
     pack.payload.boundingBoxScaleY = 0;
     pack.payload.boundingBoxScaleZ = 0;
     pack.payload.audioData = pcm16;
-
     this.nodes.audio.sendPacket(pack);
-    console.log("voip", pack)
+    //console.log("voip", pack);
   }
 };
 
