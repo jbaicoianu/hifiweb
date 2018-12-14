@@ -387,7 +387,7 @@ console.log('got selected audio format', packet);
   }
   handleMixedAudio(packet) {
     //console.log('mic data', packet);
-    this.voip.processVOIPData(packet.audiodata);
+    this.voip.processVOIPData(packet.audioData);
   }
   sendSilentAudio() {
     //console.log('silent audio');
@@ -402,12 +402,12 @@ console.log('got selected audio format', packet);
     pack.payload.orientationY = this.avatar.orientation.y;
     pack.payload.orientationZ = this.avatar.orientation.z;
     pack.payload.orientationW = this.avatar.orientation.w;
-    pack.payload.position2X = this.avatar.position.x;
-    pack.payload.position2Y = this.avatar.position.y;
-    pack.payload.position2Z = this.avatar.position.z;
-    pack.payload.zeroX = 0;
-    pack.payload.zeroY = 0;
-    pack.payload.zeroZ = 0;
+    pack.payload.boundingBoxCornerX = this.avatar.position.x;
+    pack.payload.boundingBoxCornerY = this.avatar.position.y;
+    pack.payload.boundingBoxCornerZ = this.avatar.position.z;
+    pack.payload.boundingBoxScaleX = 0;
+    pack.payload.boundingBoxScaleY = 0;
+    pack.payload.boundingBoxScaleZ = 0;
     this.nodes.audio.sendPacket(pack);
     //console.log(pack);
   }
@@ -433,7 +433,7 @@ console.log('got selected audio format', packet);
     pack.payload.boundingBoxScaleX = 0;
     pack.payload.boundingBoxScaleY = 0;
     pack.payload.boundingBoxScaleZ = 0;
-    pack.payload.audiodata = pcm16;
+    pack.payload.audioData = pcm16;
 
     this.nodes.audio.sendPacket(pack);
     console.log("voip", pack)
