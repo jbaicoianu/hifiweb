@@ -76,13 +76,13 @@ export class VOIPWorkletProcessorPCM extends VOIPWorkletProcessor {
     // FIXME - it seems the data we're getting is a bit longer than the 960 bytes we expect.  Do we have a byte offset issue?
     let bufview = new DataView(message.buffer, message.byteOffset);
 
-    let pcm16 = new Uint16Array(message.length / 2);
+    let pcm16 = new Int16Array(message.length / 2);
     let pcmfloat = new Float32Array(pcm16.length);
     for (let i = 0; i < pcm16.length; i++) {
       // Read bytes as unsigned little endian pcm16 data
-      pcm16[i] = bufview.getUint16(i * 2, true);
+      pcm16[i] = bufview.getInt16(i * 2, true);
       // Convert unsigned pcm16 data to float range from -1..1
-      pcmfloat[i] = ((pcm16[i] / 32768) - 1);
+      pcmfloat[i] = (pcm16[i] / 32768);
     }
 
     /*
