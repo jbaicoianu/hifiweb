@@ -47,10 +47,10 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
 
     let bufferlength = this.inputbuffer.length();
     if (bufferlength >= this.inputChunkSize) {
-      let chunk = new Float32Array(this.inputChunkSize);
-      let inbuffer = new Uint16Array(this.inputChunkSize);
+      let chunk = new Float32Array(this.inputChunkSize / 2);
+      let inbuffer = new Uint16Array(this.inputChunkSize / 2);
 
-      this.inputbuffer.read(chunk, this.inputChunkSize);
+      this.inputbuffer.read(chunk, this.inputChunkSize / 2);
 
       let idx =  0;
       for (let i = 0; i < chunk.length; i++) {
