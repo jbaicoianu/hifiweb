@@ -28,6 +28,15 @@ export class HifiAvatar {
   }
   setOrientation(orientation) {
     this.orientation.copy(orientation);
+
+    // FIXME - there seems to be a weird bug where if we send an unchanged orientation from the last frame, our position updates aren't processed
+    //         Work around this by adding a random value, then renormalizing.
+    this.orientation.x += (Math.random() - .5) / 20000;
+    this.orientation.y += (Math.random() - .5) / 20000;
+    this.orientation.z += (Math.random() - .5) / 20000;
+    this.orientation.w += (Math.random() - .5) / 20000;
+    this.orientation.normalize();
+
     this.janusobj.orientation.copy(this.orientation);
     this.hasUpdates = true;
     this.sendOrientation = true;
