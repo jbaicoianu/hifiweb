@@ -636,20 +636,42 @@ export class ByteArray_t {
   write(data, offset, value) {
     if (!offset) offset = 0;
     if (!length) length = data.byteLength - offset;
-    let bytes = value;
-    if (value instanceof Uint16Array ||
-        value instanceof Int16Array ||
-        value instanceof Uint32Array ||
-        value instanceof Int32Array ||
-        value instanceof Float32Array ||
-        value instanceof Float64Array
-    ) {
-      bytes = new Uint8Array(value.buffer);
-    } else if (value instanceof ArrayBuffer) {
-      bytes = new Uint8Array(value);
+    if (value instanceof ArrayBuffer) {
+      value = new Uint8Array(value);
     }
-    for (let i = 0; i < bytes.byteLength; i++) {
-      data.setUint8(offset + i, bytes[i]);
+
+    if (value instanceof Uint8Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setUint8(offset + i, value[i]);
+      }
+    } else if (value instanceof Int8Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setInt8(offset + i, value[i]);
+      }
+    } else if (value instanceof Uint16Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setUint16(offset + i * 2, value[i], true);
+      }
+    } else if (value instanceof Int16Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setInt16(offset + i * 2, value[i], true);
+      }
+    } else if (value instanceof Uint32Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setUint32(offset + i * 4, value[i], true);
+      }
+    } else if (value instanceof Int32Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setInt32(offset + i * 4, value[i], true);
+      }
+    } else if (value instanceof Float32Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setFloat32(offset + i * 4, value[i], true);
+      }
+    } else if (value instanceof Float64Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setFloat64(offset + i * 8, value[i], true);
+      }
     }
   }
 }
