@@ -32,29 +32,20 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
     }
 
     // Capture microphone input, and send it to the main thread when we've queued more than a specified chunk size
-
-    // Interleave stereo channels into one data stream
-    let inbufferfloat = new Float32Array(inputs[0][0].length * 2);
-    let idx =  0;
-    for (let i = 0; i < inputs.length; i++) {
-      for (let k = 0; k < inputs[i][0].length; k++) {
-        inbufferfloat[idx++] = inputs[i][0][k];
-        inbufferfloat[idx++] = inputs[i][1][k];
-      }
-    }
-
-    this.inputbuffer.add(inbufferfloat);
+    this.inputbuffer.add(inputs[0][0]);
 
     let bufferlength = this.inputbuffer.length();
     if (bufferlength >= this.inputChunkSize) {
-      let chunk = new Float32Array(this.inputChunkSize / 2);
+      let chunk = new Float32Array(this.inputChunkSize);
       let inbuffer = new Uint16Array(this.inputChunkSize / 2);
 
       this.inputbuffer.read(chunk, this.inputChunkSize / 2);
 
       let idx =  0;
       for (let i = 0; i < chunk.length; i++) {
-        inbuffer[i] = (chunk[i] + 1) * 32767;
+        // FIXME - resampling down to 24000Hz helps, but is still robotic
+        // We also don't scale by the full 32768 or it sounds like hot garbage
+        inbuffer[i] = (chunk[i*2] + 1) * 16384;
       }
 
       // Send encoded audio stream data back to the main thread
