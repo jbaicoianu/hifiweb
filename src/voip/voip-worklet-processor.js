@@ -7,8 +7,8 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
     super();
     this.buffer = new RingBuffer();
     this.inputbuffer = new RingBuffer();
-    this.sampleRate = 48000; // FIXME - I expected sampleRate to be 24000 acording to hifi's source, but it appear to be 48000
-    this.inputChunkSize = 960;
+    this.sampleRate = 24000;
+    this.inputChunkSize = 480;
     this.port.onmessage = (event) => this.handleMessage(event.data);
     console.log('Initialized VOIP worklet');
   }
@@ -32,20 +32,20 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
     }
 
     // Capture microphone input, and send it to the main thread when we've queued more than a specified chunk size
-    this.inputbuffer.add(inputs[0][0]);
+    var resampler = new Resampler(48000, this.sampleRate, 1, inputs[0][0]);
+    resampler.resampler(inputs[0][0].length);
+    this.inputbuffer.add(resampler.outputBuffer);
 
     let bufferlength = this.inputbuffer.length();
     if (bufferlength >= this.inputChunkSize) {
       let chunk = new Float32Array(this.inputChunkSize);
-      let inbuffer = new Uint16Array(this.inputChunkSize / 2);
+      let inbuffer = new Int16Array(this.inputChunkSize);
 
-      this.inputbuffer.read(chunk, this.inputChunkSize / 2);
+      this.inputbuffer.read(chunk, this.inputChunkSize);
 
       let idx =  0;
       for (let i = 0; i < chunk.length; i++) {
-        // FIXME - resampling down to 24000Hz helps, but is still robotic
-        // We also don't scale by the full 32768 or it sounds like hot garbage
-        inbuffer[i] = (chunk[i*2] + 1) * 16384;
+        inbuffer[i] = (chunk[i]) * 32768;
       }
 
       // Send encoded audio stream data back to the main thread
