@@ -436,7 +436,6 @@ class PingReply extends struct.define({
 }) {
 };
 class NegotiateAudioFormat extends struct.define({
-  numberOfCodecs: new struct.Uint8_t,
   codecs: new struct.StringList_t
 }) {
 };
@@ -784,12 +783,12 @@ class SilentAudioFrame extends struct.define({
   orientationY: new struct.Float_t,
   orientationZ: new struct.Float_t,
   orientationW: new struct.Float_t,
-  position2X: new struct.Float_t,
-  position2Y: new struct.Float_t,
-  position2Z: new struct.Float_t,
-  zeroX: new struct.Float_t,
-  zeroY: new struct.Float_t,
-  zeroZ: new struct.Float_t,
+  boundingBoxCornerX: new struct.Float_t,
+  boundingBoxCornerY: new struct.Float_t,
+  boundingBoxCornerZ: new struct.Float_t,
+  boundingBoxScaleX: new struct.Float_t,
+  boundingBoxScaleY: new struct.Float_t,
+  boundingBoxScaleZ: new struct.Float_t,
 }) {
   static version() { return 23; }
   read() {
@@ -799,7 +798,28 @@ class SilentAudioFrame extends struct.define({
 class MixedAudio extends struct.define({
   sequence: new struct.Uint16_t,
   codec: new struct.String_t,
-  audiodata: new struct.ByteArray_t,
+  audioData: new struct.ByteArray_t,
+}) {
+  static version() { return 23; }
+};
+class MicrophoneAudioNoEcho extends struct.define({
+  sequence: new struct.Uint16_t,
+  codec: new struct.String_t,
+  channelFlag: new struct.Boolean_t,
+  positionX: new struct.Float_t,
+  positionY: new struct.Float_t,
+  positionZ: new struct.Float_t,
+  orientationX: new struct.Float_t,
+  orientationY: new struct.Float_t,
+  orientationZ: new struct.Float_t,
+  orientationW: new struct.Float_t,
+  boundingBoxCornerX: new struct.Float_t,
+  boundingBoxCornerY: new struct.Float_t,
+  boundingBoxCornerZ: new struct.Float_t,
+  boundingBoxScaleX: new struct.Float_t,
+  boundingBoxScaleY: new struct.Float_t,
+  boundingBoxScaleZ: new struct.Float_t,
+  audioData: new struct.ByteArray_t
 }) {
   static version() { return 23; }
 };
@@ -818,6 +838,7 @@ var PacketTypeDefs = {
   AvatarQuery: AvatarQuery,
   SilentAudioFrame: SilentAudioFrame,
   MixedAudio: MixedAudio,
+  MicrophoneAudioNoEcho: MicrophoneAudioNoEcho,
   ICEPing: ICEPing,
   ICEPingReply: ICEPingReply,
   ProxiedICEPing: ProxiedICEPing,
@@ -850,6 +871,7 @@ export {
   AvatarQuery,
   SilentAudioFrame,
   MixedAudio,
+  MicrophoneAudioNoEcho,
   ICEPing,
   ICEPingReply,
   ProxiedICEPing,

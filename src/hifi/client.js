@@ -14,6 +14,14 @@ class HifiClient extends EventTarget {
     this.relayserver = 'wss://hifirelay.janusvr.com:8119';
     this.domain = 'hifi://janusvr';
 
+    // Read domain from input, if specified
+    // TODO - this should just be an argument when starting he client
+    let domaininput = document.getElementById('domaininput');
+    if (domaininput && domaininput.value) {
+      this.domain = domaininput.value;
+    }
+
+
     this.startTime = new Date().getTime();
     /*
     this.packetdebugger = document.createElement('struct-viewer');
@@ -25,6 +33,8 @@ class HifiClient extends EventTarget {
     this.avatar = null;
 
     this.voip = new VOIP();
+    this.voip.addEventListener('voipdata', (ev) => this.handleVOIPData(ev));
+    this.audiobuffer = [];
 
     this.connectToRelay();
   }
@@ -390,7 +400,7 @@ console.log('got selected audio format', packet);
       this.nodes.audio.addPacketHandler('SilentAudioFrame', (packet) => this.handleSilentAudio(packet));
       this.nodes.audio.addPacketHandler('MixedAudio', (packet) => this.handleMixedAudio(packet));
 
-      this.silentAudioTimer = setInterval(() => this.sendSilentAudio(), 10);
+      this.silentAudioTimer = setInterval(() => this.sendAudioPacket(), 10);
     }
   }
   handleSilentAudio(packet) {
@@ -398,14 +408,11 @@ console.log('got selected audio format', packet);
   }
   handleMixedAudio(packet) {
     //console.log('mic data', packet);
-    this.voip.processVOIPData(packet.audiodata);
-  }
-  sendSilentAudio() {
-    //console.log('silent audio');
-    let pack = this.nodes.audio.createPacket('SilentAudioFrame');
+
+    /*let pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
     pack.payload.sequence = this.audioSequence++;
-    pack.payload.codec = 'pcm';
-    pack.payload.samples = 480;
+    pack.payload.codec = '';
+    pack.payload.channelFlag = 1;
     pack.payload.positionX = this.avatar.position.x;
     pack.payload.positionY = this.avatar.position.y;
     pack.payload.positionZ = this.avatar.position.z;
@@ -413,14 +420,49 @@ console.log('got selected audio format', packet);
     pack.payload.orientationY = this.avatar.orientation.y;
     pack.payload.orientationZ = this.avatar.orientation.z;
     pack.payload.orientationW = this.avatar.orientation.w;
-    pack.payload.position2X = this.avatar.position.x;
-    pack.payload.position2Y = this.avatar.position.y;
-    pack.payload.position2Z = this.avatar.position.z;
-    pack.payload.zeroX = 0;
-    pack.payload.zeroY = 0;
-    pack.payload.zeroZ = 0;
+    pack.payload.boundingBoxCornerX = this.avatar.position.x;
+    pack.payload.boundingBoxCornerY = this.avatar.position.y;
+    pack.payload.boundingBoxCornerZ = this.avatar.position.z;
+    pack.payload.boundingBoxScaleX = 0;
+    pack.payload.boundingBoxScaleY = 0;
+    pack.payload.boundingBoxScaleZ = 0;
+    pack.payload.audioData = packet.audioData;
+    this.nodes.audio.sendPacket(pack);*/
+
+    this.voip.processVOIPData(packet.audioData);
+  }
+  sendAudioPacket() {
+    //console.log('silent audio');
+    let pack;
+    if (this.audiobuffer.length > 0) {
+      pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
+      pack.payload.channelFlag = 0;
+      pack.payload.audioData = this.audiobuffer.shift();
+    } else {
+      pack = this.nodes.audio.createPacket('SilentAudioFrame');
+      pack.payload.samples = 480;
+    }
+
+    pack.payload.sequence = this.audioSequence++;
+    pack.payload.codec = '';
+    pack.payload.positionX = this.avatar.position.x;
+    pack.payload.positionY = this.avatar.position.y;
+    pack.payload.positionZ = this.avatar.position.z;
+    pack.payload.orientationX = this.avatar.orientation.x;
+    pack.payload.orientationY = this.avatar.orientation.y;
+    pack.payload.orientationZ = this.avatar.orientation.z;
+    pack.payload.orientationW = this.avatar.orientation.w;
+    pack.payload.boundingBoxCornerX = this.avatar.position.x;
+    pack.payload.boundingBoxCornerY = this.avatar.position.y;
+    pack.payload.boundingBoxCornerZ = this.avatar.position.z;
+    pack.payload.boundingBoxScaleX = 0;
+    pack.payload.boundingBoxScaleY = 0;
+    pack.payload.boundingBoxScaleZ = 0;
+
     this.nodes.audio.sendPacket(pack);
-    //console.log(pack);
+  }
+  handleVOIPData(ev) {
+    this.audiobuffer.push(ev.detail);
   }
 };
 

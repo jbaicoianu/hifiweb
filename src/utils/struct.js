@@ -481,7 +481,7 @@ export class String_t extends ByteRange_t {
   size(value) {
     return value.length + 4;
   }
-  write(data, offset, value) {
+  static write(data, offset, value) {
     if (!offset) offset = 0;
     if (typeof value != 'string') value = String(value);
 
@@ -640,13 +640,19 @@ export class StringList_t {
     this.value = [];
   }
   size(value) {
-    let size = 0;
+    let size = 1;
     value.forEach(v => size += 4 + v.length);
     return size;
   }
   read(data, offset) {
   }
   write(data, offset, value) {
+    let num = value.length;
+    data.setUint8(offset, num);
+    let stroffset = offset + 1;
+    for (let i = 0; i < num; i++) {
+      String_t.write(data, stroffset, value[i]);
+    }
   }
 }
 export class StructList_t {
@@ -697,20 +703,54 @@ export class ByteArray_t {
     this.value = new Uint8Array();
   }
   size(value) {
-    //console.log('read mixedaudio length', this.value.byteLength);
-    return this.value.byteLength;
+    return value.byteLength;
   }
   read(data, offset, length) {
     if (!offset) offset = 0;
     if (!length) length = data.byteLength - offset;
     this.value = new Uint8Array(data.buffer, offset + data.byteOffset, length);
-  //console.log('read mixedaudio data', data);
-  //console.log('read mixedaudio buffer', data.buffer);
-  //console.log('read mixedaudio value', data.buffer, this.value);
     return this.value;
   }
   write(data, offset, value) {
-    //TODO
+    if (!offset) offset = 0;
+    if (!length) length = data.byteLength - offset;
+    if (value instanceof ArrayBuffer) {
+      value = new Uint8Array(value);
+    }
+
+    if (value instanceof Uint8Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setUint8(offset + i, value[i]);
+      }
+    } else if (value instanceof Int8Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setInt8(offset + i, value[i]);
+      }
+    } else if (value instanceof Uint16Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setUint16(offset + i * 2, value[i], true);
+      }
+    } else if (value instanceof Int16Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setInt16(offset + i * 2, value[i], true);
+      }
+    } else if (value instanceof Uint32Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setUint32(offset + i * 4, value[i], true);
+      }
+    } else if (value instanceof Int32Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setInt32(offset + i * 4, value[i], true);
+      }
+    } else if (value instanceof Float32Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setFloat32(offset + i * 4, value[i], true);
+      }
+    } else if (value instanceof Float64Array) {
+      for (let i = 0; i < value.length; i++) {
+        data.setFloat64(offset + i * 8, value[i], true);
+      }
+    }
   }
 }
 
