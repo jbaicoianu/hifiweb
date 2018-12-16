@@ -237,19 +237,15 @@ console.log('start avatar updates', this.sessionUUID);
       pack2.payload.numberOfViews = 1;
       var views = [];
       let view = new ConicalViewFrustum();
-      view.positionX =  this.avatar.position.x;
-      view.positionY =  this.avatar.position.y;
-      view.positionz =  this.avatar.position.z;
-      view.directionX =  this.avatar.view_dir.x;
-      view.directionY =  this.avatar.view_dir.y;
-      view.directionZ =  this.avatar.view_dir.z;
+      view.position = this.avatar.position;
+      view.direction =  this.avatar.view_dir;
       view.angle = 1.0; //DEFAULT_VIEW_ANGLE
       view.clip = 100.0; //DEFAULT_VIEW_FAR_CLIP
       view.radius = 10.0; //DEFAULT_VIEW_RADIUS
       views.push(view);
       pack2.payload.views = views;
       this.nodes.avatar.sendPacket(pack2);
-      console.log(pack2);
+      //console.log(pack2);
 
       this.avatar.clearUpdates();
     }
@@ -413,19 +409,10 @@ console.log('got selected audio format', packet);
     pack.payload.sequence = this.audioSequence++;
     pack.payload.codec = '';
     pack.payload.channelFlag = 1;
-    pack.payload.positionX = this.avatar.position.x;
-    pack.payload.positionY = this.avatar.position.y;
-    pack.payload.positionZ = this.avatar.position.z;
-    pack.payload.orientationX = this.avatar.orientation.x;
-    pack.payload.orientationY = this.avatar.orientation.y;
-    pack.payload.orientationZ = this.avatar.orientation.z;
-    pack.payload.orientationW = this.avatar.orientation.w;
-    pack.payload.boundingBoxCornerX = this.avatar.position.x;
-    pack.payload.boundingBoxCornerY = this.avatar.position.y;
-    pack.payload.boundingBoxCornerZ = this.avatar.position.z;
-    pack.payload.boundingBoxScaleX = 0;
-    pack.payload.boundingBoxScaleY = 0;
-    pack.payload.boundingBoxScaleZ = 0;
+    pack.payload.position = this.avatar.position;
+    pack.payload.orientation = this.avatar.orientation;
+    pack.payload.boundingBoxCorner = this.avatar.position;
+    pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
     pack.payload.audioData = packet.audioData;
     this.nodes.audio.sendPacket(pack);*/
 
@@ -445,19 +432,10 @@ console.log('got selected audio format', packet);
 
     pack.payload.sequence = this.audioSequence++;
     pack.payload.codec = '';
-    pack.payload.positionX = this.avatar.position.x;
-    pack.payload.positionY = this.avatar.position.y;
-    pack.payload.positionZ = this.avatar.position.z;
-    pack.payload.orientationX = this.avatar.orientation.x;
-    pack.payload.orientationY = this.avatar.orientation.y;
-    pack.payload.orientationZ = this.avatar.orientation.z;
-    pack.payload.orientationW = this.avatar.orientation.w;
-    pack.payload.boundingBoxCornerX = this.avatar.position.x;
-    pack.payload.boundingBoxCornerY = this.avatar.position.y;
-    pack.payload.boundingBoxCornerZ = this.avatar.position.z;
-    pack.payload.boundingBoxScaleX = 0;
-    pack.payload.boundingBoxScaleY = 0;
-    pack.payload.boundingBoxScaleZ = 0;
+    pack.payload.position = this.avatar.position;
+    pack.payload.orientation = this.avatar.orientation;
+    pack.payload.boundingBoxCorner = this.avatar.position;
+    pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
 
     this.nodes.audio.sendPacket(pack);
   }

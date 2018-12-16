@@ -543,6 +543,51 @@ export class StringUTF16_t extends ByteRange_t {
     }
   }
 };
+export class Vec3_t extends ByteRange_t {
+  constructor(value) {
+    super(12);
+    this.value = {x: 0, y: 0, z: 0};
+  }
+  write(data, offset, value) {
+      if (!offset) offset = 0;
+      if (typeof value.x != 'number' &&
+          typeof value.y != 'number' &&
+          typeof value.z != 'number') value = {x: 0, y: 0, z: 0};
+
+      data.setFloat32(offset, value.x, true);
+      data.setFloat32(offset+4, value.y, true);
+      data.setFloat32(offset+8, value.z, true);
+  }
+  read(data, offset) {
+    return {x: data.getFloat32(offset, true),
+            y: data.getFloat32(offset+4, true),
+            z: data.getFloat32(offset+8, true)};
+  }
+}
+export class Quat_t extends ByteRange_t {
+  constructor(value) {
+    super(16);
+    this.value = {x: 0, y: 0, z: 0, w: 1};
+  }
+  write(data, offset, value) {
+      if (!offset) offset = 0;
+      if (typeof value.x != 'number' &&
+          typeof value.y != 'number' &&
+          typeof value.z != 'number' &&
+          typeof value.w != 'number') value = {x: 0, y: 0, z: 0, w: 1};
+
+      data.setFloat32(offset, value.x, true);
+      data.setFloat32(offset+4, value.y, true);
+      data.setFloat32(offset+8, value.z, true);
+      data.setFloat32(offset+12, value.w, true);
+  }
+  read(data, offset) {
+    return {x: data.getFloat32(offset, true),
+            y: data.getFloat32(offset+4, true),
+            z: data.getFloat32(offset+8, true),
+            w: data.getFloat32(offset+12, true)};
+  }
+}
 export class SixByteQuat_t extends ByteRange_t {
   constructor(value) {
     super(6);

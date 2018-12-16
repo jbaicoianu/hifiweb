@@ -75,7 +75,7 @@ console.log(this.janusobj, displayName);
     //console.log('yup, got some updates', avatarData, this);
     avatarData.updates.forEach(update => {
       if (update instanceof AvatarGlobalPosition) {
-        this.position.set(update.globalPositionX, update.globalPositionY, update.globalPositionZ);
+        this.position.set(update.globalPosition.x, update.globalPosition.y, update.globalPosition.z);
         this.janusobj.pos = this.position;
 //console.log(' - new avatar pos', this.position, update, avatarData, this);
       }

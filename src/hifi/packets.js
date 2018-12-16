@@ -585,18 +585,13 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
     if (avatar.sendPosition) {
       this.hasFlags |= AvatarDataHasFlags.avatar_global_position;
       let update = new AvatarGlobalPosition();
-      update.globalPositionX = avatar.position.x;
-      update.globalPositionY = avatar.position.y;
-      update.globalPositionZ = avatar.position.z;
+      update.globalPosition = avatar.position;
       this.updates.push(update);
     }
     if (avatar.sendOrientation) {
       this.hasFlags |= AvatarDataHasFlags.avatar_orientation;
       let update = new AvatarOrientation();
-      update.orientation.x = avatar.orientation.x;
-      update.orientation.y = avatar.orientation.y;
-      update.orientation.z = avatar.orientation.z;
-      update.orientation.w = avatar.orientation.w;
+      update.orientation = avatar.orientation
       this.updates.push(update);
     }
   }
@@ -606,17 +601,11 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
 };
 
 class AvatarGlobalPosition extends struct.define({
-  globalPositionX: new struct.Float_t,
-  globalPositionY: new struct.Float_t,
-  globalPositionZ: new struct.Float_t
+  globalPosition: new struct.Vec3_t
 }) { };
 class AvatarBoundingBox extends struct.define({
-  sizeX: new struct.Float_t,
-  sizeY: new struct.Float_t,
-  sizeZ: new struct.Float_t,
-  originX: new struct.Float_t,
-  originY: new struct.Float_t,
-  originZ: new struct.Float_t
+  boxSize: new struct.Vec3_t,
+  origin: new struct.Vec3_t
 }) { };
 class AvatarOrientation extends struct.define({
   orientation: new struct.SixByteQuat_t,
@@ -625,9 +614,7 @@ class AvatarScale extends struct.define({
   scale: new struct.TwoByteFloatRatio_t,
 }) { };
 class LookAtPosition extends struct.define({
-  lookAtPositionX: new struct.Float_t,
-  lookAtPositionY: new struct.Float_t,
-  lookAtPositionZ: new struct.Float_t
+  lookAtPosition: new struct.Vec3_t
 }) { };
 class AudioLoudness extends struct.define({
   audioLoudness: new struct.Uint8_t
@@ -635,9 +622,7 @@ class AudioLoudness extends struct.define({
 class SensorToWorldMatrix extends struct.define({
   sensorToWorldQuat: new struct.SixByteQuat_t,
   sensorToWorldScale: new struct.Uint16_t,
-  sensorToWorldTransX: new struct.Float_t,
-  sensorToWorldTransY: new struct.Float_t,
-  sensorToWorldTransZ: new struct.Float_t,
+  sensorToWorldTrans: new struct.Vec3_t,
 }) { };
 class AdditionalFlags extends struct.define({
   flags: new struct.Uint16_t
@@ -647,9 +632,7 @@ class ParentInfo extends struct.define({
   parentJointIndex: new struct.Uint16_t
 }) { };
 class AvatarLocalPosition extends struct.define({
-  localPositionX: new struct.Float_t,
-  localPositionY: new struct.Float_t,
-  localPositionZ: new struct.Float_t
+  localPosition: new struct.Vec3_t
 }) { };
 class FaceTrackerInfo extends struct.define({
   leftEyeBlink: new struct.Float_t,
@@ -659,48 +642,24 @@ class FaceTrackerInfo extends struct.define({
   numBlendshapeCoefficients: new struct.Uint8_t
 }) { };
 class JointData extends struct.define({
-  rotationX: new struct.Float_t,
-  rotationY: new struct.Float_t,
-  rotationZ: new struct.Float_t,
-  rotationW: new struct.Float_t,
-  positionX: new struct.Float_t,
-  positionY: new struct.Float_t,
-  positionZ: new struct.Float_t,
+  rotation: new struct.Quat_t,
+  position: new struct.Vec3_t,
   rotationSet: new struct.Boolean_t,
   translationSet: new struct.Boolean_t,
 }) { };
 class FarGrabJoints extends struct.define({
-  leftFarGrabPositionX: new struct.Float_t,
-  leftFarGrabPositionY: new struct.Float_t,
-  leftFarGrabPositionZ: new struct.Float_t,
-  leftFarGrabRotationX: new struct.Float_t,
-  leftFarGrabRotationY: new struct.Float_t,
-  leftFarGrabRotationZ: new struct.Float_t,
-  leftFarGrabRotationW: new struct.Float_t,
+  leftFarGrabPosition: new struct.Vec3_t,
+  leftFarGrabRotation: new struct.Quat_t,
 
-  rightFarGrabPositionX: new struct.Float_t,
-  rightFarGrabPositionY: new struct.Float_t,
-  rightFarGrabPositionZ: new struct.Float_t,
-  rightFarGrabRotationX: new struct.Float_t,
-  rightFarGrabRotationY: new struct.Float_t,
-  rightFarGrabRotationZ: new struct.Float_t,
-  rightFarGrabRotationW: new struct.Float_t,
+  rightFarGrabPosition: new struct.Vec3_t,
+  rightFarGrabRotation: new struct.Quat_t,
 
-  mouseFarGrabPositionX: new struct.Float_t,
-  mouseFarGrabPositionY: new struct.Float_t,
-  mouseFarGrabPositionZ: new struct.Float_t,
-  mouseFarGrabRotationX: new struct.Float_t,
-  mouseFarGrabRotationY: new struct.Float_t,
-  mouseFarGrabRotationZ: new struct.Float_t,
-  mouseFarGrabRotationW: new struct.Float_t,
+  mouseFarGrabPosition: new struct.Vec3_t,
+  mouseFarGrabRotation: new struct.Quat_t,
 }) { };
 class ConicalViewFrustum extends struct.define({
-  positionX: new struct.Float_t,
-  positionY: new struct.Float_t,
-  positionZ: new struct.Float_t,
-  directionX: new struct.Float_t,
-  directionY: new struct.Float_t,
-  directionZ: new struct.Float_t,
+  position: new struct.Vec3_t,
+  direction: new struct.Vec3_t,
   angle: new struct.TwoByteFloatAngle_t,
   clip: new struct.TwoByteClipValue_t,
   radius: new struct.Float_t,
@@ -776,19 +735,10 @@ class SilentAudioFrame extends struct.define({
   sequence: new struct.Uint16_t,
   codec: new struct.String_t,
   samples: new struct.Int16_t,
-  positionX: new struct.Float_t,
-  positionY: new struct.Float_t,
-  positionZ: new struct.Float_t,
-  orientationX: new struct.Float_t,
-  orientationY: new struct.Float_t,
-  orientationZ: new struct.Float_t,
-  orientationW: new struct.Float_t,
-  boundingBoxCornerX: new struct.Float_t,
-  boundingBoxCornerY: new struct.Float_t,
-  boundingBoxCornerZ: new struct.Float_t,
-  boundingBoxScaleX: new struct.Float_t,
-  boundingBoxScaleY: new struct.Float_t,
-  boundingBoxScaleZ: new struct.Float_t,
+  position: new struct.Vec3_t,
+  orientation: new struct.Quat_t,
+  boundingBoxCorner: new struct.Vec3_t,
+  boundingBoxScale: new struct.Vec3_t,
 }) {
   static version() { return 23; }
   read() {
@@ -806,19 +756,10 @@ class MicrophoneAudioNoEcho extends struct.define({
   sequence: new struct.Uint16_t,
   codec: new struct.String_t,
   channelFlag: new struct.Boolean_t,
-  positionX: new struct.Float_t,
-  positionY: new struct.Float_t,
-  positionZ: new struct.Float_t,
-  orientationX: new struct.Float_t,
-  orientationY: new struct.Float_t,
-  orientationZ: new struct.Float_t,
-  orientationW: new struct.Float_t,
-  boundingBoxCornerX: new struct.Float_t,
-  boundingBoxCornerY: new struct.Float_t,
-  boundingBoxCornerZ: new struct.Float_t,
-  boundingBoxScaleX: new struct.Float_t,
-  boundingBoxScaleY: new struct.Float_t,
-  boundingBoxScaleZ: new struct.Float_t,
+  position: new struct.Vec3_t,
+  orientation: new struct.Quat_t,
+  boundingBoxCorner: new struct.Vec3_t,
+  boundingBoxScale: new struct.Vec3_t,
   audioData: new struct.ByteArray_t
 }) {
   static version() { return 23; }
