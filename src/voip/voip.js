@@ -25,7 +25,7 @@ export class VOIP extends EventTarget {
   }
   startMicrophoneCapture() {
     console.log('start microphone capture');
-    navigator.mediaDevices.getUserMedia({audio: true, video: false}).then((devices) => this.handleUserMedia(devices));
+    navigator.mediaDevices.getUserMedia({audio: {echoCancellation: true, sampleRate: 24000}, video: false}).then((devices) => this.handleUserMedia(devices));
   }
   stopMicrophoneCapture() {
     if (this.audiosource && this.microphoneCapturing) {
