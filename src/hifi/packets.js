@@ -709,9 +709,9 @@ class FaceTrackerInfo extends struct.define({
 };
 class JointData extends struct.define({
   numJoints: new struct.Uint8_t,
-  validityBitsRotations: new struct.ByteArray_t,
+  validityBitsRotations: new struct.BitVector_t,
   rotations: new struct.StructList_t,
-  validityBitsTranslations: new struct.ByteArray_t,
+  validityBitsTranslations: new struct.BitVector_t,
   translations: new struct.StructList_t,
   fauxJoint0Rotation: new struct.SixByteQuat_t,
   fauxJoint0Translation: new struct.SignedTwoByteVec3_t,
@@ -787,8 +787,8 @@ class FarGrabJoints extends struct.define({
 }) { };
 class JointDataDefaultPoseFlags extends struct.define({
   numJoints: new struct.Uint8_t,
-  rotations: new struct.ByteArray_t,
-  translations: new struct.ByteArray_t
+  rotations: new struct.BitVector_t,
+  translations: new struct.BitVector_t
 }) {
   size() {
     return 1 + 2*(Math.ceil(this.numJoints / 8));
