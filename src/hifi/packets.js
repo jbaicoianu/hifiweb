@@ -731,6 +731,8 @@ class JointData extends struct.define({
 
     this.rotations = [];
     this.translations = [];
+    this.validityBitsRotations = [];
+    this.validityBitsTranslations = [];
 
     if (this.numJoints > 0) {
       var validityBitsRotations = new struct.BitVector_t;
@@ -801,6 +803,9 @@ class JointDataDefaultPoseFlags extends struct.define({
     this.numJoints = buf.getUint8(offset);
     offset++;
 
+    this.rotations = [];
+    this.translations = [];
+
     if (this.numJoints > 0) {
       var rotations = new struct.BitVector_t;
       this.rotations = rotations.read(buf, offset, this.numJoints);
@@ -821,18 +826,108 @@ class ConicalViewFrustum extends struct.define({
   radius: new struct.Float_t,
 }) { };
 
+class AttachmentData extends struct.define({
+  modelURL: new struct.String_t,
+  jointName: new struct.StringUTF16_t,
+  translation: new struct.Vec3_t,
+  rotation: new struct.Quat_t,
+  scale: new struct.Float_t,
+  isSoft: new struct.Boolean_t
+}) { };
+
 class AvatarIdentity extends struct.define({
   avatarSessionUUID: new struct.UUID_t,
   identitySequenceNumber: new struct.Uint32BE_t,
-  //attachmentData: new struct.StructList_t,
-  attachmentName: new struct.StringUTF16_t,
-  //attachmentJointName: new struct.StringUTF16_t,
+  attachmentData: new struct.StructList_t,
   displayName: new struct.StringUTF16_t,
   sessionDisplayName: new struct.StringUTF16_t,
   isReplicated: new struct.Boolean_t,
   lookAtSnappingEnabled: new struct.Boolean_t
 }) {
   static version() { return 45; }
+  getDataBytes() {
+    if (typeof this.bytes != 'undefined') {
+      return new Uint8Array(this.bytes.buffer, this.bytes.byteOffset + this.byteOffset);
+    }
+    else {
+      return super.getDataBytes();
+    }
+  }
+  read(data, offset) {
+    if (!offset) offset = 0;
+    this.bytes = data;
+    this.byteOffset = offset;
+    let buf = new DataView(data, 0);
+
+    let uuid = new struct.UUID_t;
+    this.avatarSessionUUID = uuid.read(buf, offset);
+    offset += 16;
+
+    this.identitySequenceNumber = buf.getUint32(offset, false);
+    offset += 4;
+
+    let numAttachments =  buf.getUint32(offset, false);
+    offset += 4;
+    for (let i = 0; i < numAttachments; i++) {
+      let attachment = new AttachmentData();
+
+      let modelURL = new struct.String_t;
+      attachment.modelURL = modelURL.read(buf, offset);
+      if (attachment.modelURL != null){
+        offset += attachment.modelURL.length;
+      }
+      offset += 4;
+
+      let jointName = new struct.StringUTF16_t;
+      attachment.jointName = jointName.read(buf, offset);
+      if (attachment.jointName != null){
+        offset += attachment.jointName.length * 2;
+      }
+      offset += 4;
+
+      let translation = new struct.Vec3_t;
+      attachment.translation = translation.read(buf, offset);
+      offset += 12;
+
+      let rotation = new struct.Quat_t;
+      attachment.rotation = rotation.read(buf, offset);
+      offset += 16;
+
+      let scale = new struct.Float_t;
+      attachment.scale = scale.read(buf, offset);
+      offset += 4;
+
+      let isSoft = new struct.Boolean_t;
+      attachment.isSoft = isSoft.read(buf, offset);
+      offset += 1;
+
+      this.attachmentData.push(attachment);
+    }
+
+    let display = new struct.StringUTF16_t;
+    this.displayName = display.read(buf, offset);
+    if (this.displayName != null){
+      offset += this.displayName.length * 2;
+    }
+    offset += 4;
+
+    let sessionDisplay = new struct.StringUTF16_t;
+    this.sessionDisplayName = sessionDisplay.read(buf, offset);
+    if (this.sessionDisplayName != null){
+      offset += this.sessionDisplayName.length * 2;
+    }
+    offset += 4;
+
+    let replicated = new struct.Boolean_t;
+    this.isReplicated = replicated.read(buf, offset);
+    offset += 1;
+
+    let snappingEnabled = new struct.Boolean_t;
+    this.lookAtSnappingEnabled = snappingEnabled.read(buf, offset);
+    offset += 1;
+
+    this.byteSize = offset - this.byteOffset;
+  }
 };
 class AvatarData extends struct.define({
   avatarDataSequenceNumber: new struct.Uint16_t,
