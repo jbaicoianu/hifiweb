@@ -494,7 +494,7 @@ export class String_t extends ByteRange_t {
   }
   read(data, offset, value) {
     let byteSize = data.getUint32(offset, true);
-    if (byteSize == 0xfffffff) {
+    if (byteSize == 0xffffffff) {
       return null;
     } else {
       let length = byteSize;
@@ -531,7 +531,7 @@ export class StringUTF16_t extends ByteRange_t {
   }
   read(data, offset, value) {
     let byteSize = data.getUint32(offset, false);
-    if (byteSize == 0xfffffff) {
+    if (byteSize == 0xffffffff) {
       return null;
     } else {
       let length = byteSize / 2;
@@ -588,6 +588,33 @@ export class Quat_t extends ByteRange_t {
             w: data.getFloat32(offset+12, true)};
   }
 }
+export class SignedTwoByteVec3_t extends ByteRange_t {
+  constructor(value) {
+    super(6);
+    this.value = {x: 0, y: 0, z: 0};
+  }
+  write(data, offset, value) {
+    if (!offset) offset = 0;
+    var TRANSLATION_COMPRESSION_RADIX = 12;
+    var vecX = (value.x * (1 << TRANSLATION_COMPRESSION_RADIX));
+    var vecY = (value.y * (1 << TRANSLATION_COMPRESSION_RADIX));
+    var vecZ = (value.z * (1 << TRANSLATION_COMPRESSION_RADIX));
+
+    data.setInt16(offset, vecX, true);
+    data.setInt16(offset+2, vecY, true);
+    data.setInt16(offset+4, vecZ, true);
+  }
+  read(data, offset) {
+    if (!offset) offset = 0;
+    var TRANSLATION_COMPRESSION_RADIX = 12;
+    var vecX = data.getInt16(offset, true) / (1 << TRANSLATION_COMPRESSION_RADIX);
+    var vecY = data.getInt16(offset+2, true) / (1 << TRANSLATION_COMPRESSION_RADIX);
+    var vecZ = data.getInt16(offset+4, true) / (1 << TRANSLATION_COMPRESSION_RADIX);
+    return {x: vecX,
+            y: vecY,
+            z: vecZ};
+  }
+};
 export class SixByteQuat_t extends ByteRange_t {
   constructor(value) {
     super(6);
@@ -742,7 +769,58 @@ console.log('read them', this.value);
 //console.log('total size of structlist:', size);
     
   }
-} 
+}
+export class BitVector_t {
+  constructor() {
+    this.value = [];
+  }
+  size(value) {
+    return Math.ceil(value.length / 8);
+  }
+  read(data, offset, length) {
+    if (!offset) offset = 0;
+    if (!length) length = 8*(data.byteLength - offset);
+
+    this.value = [];
+
+    if (length > 0) {
+      var BITS_IN_BYTE = 8;
+      var byte = data.getUint8(offset++);
+      var bit = 0;
+      for (var i = 0; i < length; i++) {
+        var v = (byte & (1 << bit)) != 0;
+        this.value.push(v);
+        if (++bit == BITS_IN_BYTE) {
+          byte = data.getUint8(offset++);
+          bit = 0;
+        }
+      }
+    }
+    return this.value;
+  }
+  write(data, offset, values) {
+    if (!offset) offset = 0;
+
+    if (values.length > 0) {
+      var BITS_IN_BYTE = 8;
+      var byte = 0;
+      var bit = 0;
+      for (let i = 0; i < values.length; i++) {
+        if (values[i]) {
+          byte |= (1 << bit);
+        }
+        if (++bit == BITS_IN_BYTE) {
+          data.setUint8(offset++, byte);
+          byte = 0;
+          bit = 0;
+        }
+      }
+      if (bit != 0) {
+        data.setUint8(offset++, byte);
+      }
+    }
+  }
+}
 export class ByteArray_t {
   constructor() {
     this.value = new Uint8Array();
