@@ -667,8 +667,46 @@ class FaceTrackerInfo extends struct.define({
   rightEyeBlink: new struct.Float_t,
   averageLoudness: new struct.Float_t,
   browAudioLift: new struct.Float_t,
-  numBlendshapeCoefficients: new struct.Uint8_t
-}) { };
+  numBlendshapeCoefficients: new struct.Uint8_t,
+  blendshapeCoefficients: new struct.StructList_t
+}) {
+  size() {
+    return 1 + 16 + 4*this.numBlendshapeCoefficients;
+  }
+  read(data, offset) {
+    if (!offset) offset = 0;
+
+    let buf = new DataView(data, 0);
+
+    let leftEyeBlink = new struct.Float_t;
+    this.leftEyeBlink = leftEyeBlink.read(buf,offset);
+    offset += 4;
+
+    let rightEyeBlink = new struct.Float_t;
+    this.rightEyeBlink = rightEyeBlink.read(buf,offset);
+    offset += 4;
+
+    let averageLoudness = new struct.Float_t;
+    this.averageLoudness = averageLoudness.read(buf,offset);
+    offset += 4;
+
+    let browAudioLift = new struct.Float_t;
+    this.browAudioLift = browAudioLift.read(buf,offset);
+    offset += 4;
+
+    let numBlendshapeCoefficients = new struct.Uint8_t;
+    this.numBlendshapeCoefficients = numBlendshapeCoefficients.read(buf,offset);
+    offset += 1;
+
+    if (this.numBlendshapeCoefficients > 0) {
+      for (let i = 0; i < this.numBlendshapeCoefficients; i++) {
+        let blendshapeCoefficient = new struct.Float_t;
+        this.numBlendshapeCoefficients.push(blendshapeCoefficient.read(buf,offset));
+        offset += 4;
+      }
+    }
+  }
+};
 class JointData extends struct.define({
   numJoints: new struct.Uint8_t,
   validityBitsRotations: new struct.ByteArray_t,
@@ -825,11 +863,11 @@ class BulkAvatarData extends struct.define({
     this.bytes = data;
     this.byteOffset = offset;
     this.updates = [];
-    //let i = 0;
+    let i = 0;
     while (idx < data.byteLength - offset) {
       let update = this.readAvatarUpdate(data, offset + idx);
       this.updates.push(update);
-      //console.log("avatar",i++,update);
+      console.log("avatar",i++,update);
       idx += update.size();
     }
   }
