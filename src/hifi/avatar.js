@@ -69,6 +69,9 @@ console.log(this.janusobj, displayName);
     if (this.displayname != identity.displayName) {
       this.setDisplayName(identity.displayName);
     }
+    if (this.displayname != identity.sessionDisplayName && identity.sessionDisplayName != null) {
+      this.setDisplayName(identity.sessionDisplayName);
+    }
     console.log('processed identity packet', this.displayName, identity, this);
   }
   processAvatarData(avatarData) {
