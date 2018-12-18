@@ -13,7 +13,7 @@ room.registerElement('hificlient', {
     if (typeof hifi !== 'undefined') {
       this.hifi = new hifi.HifiClient();
 
-      this.createObject('hifidebug', { hifi: this.hifi });
+      //this.createObject('hifidebug', { hifi: this.hifi });
     } else {
       setTimeout(() => this.create(), 100);
     }

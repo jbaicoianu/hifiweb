@@ -8,7 +8,7 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
     this.buffer = new RingBuffer();
     this.inputbuffer = new RingBuffer();
     this.sampleRate = 24000;
-    this.inputChunkSize = 480;
+    this.inputChunkSize = 240;
     this.port.onmessage = (event) => this.handleMessage(event.data);
     console.log('Initialized VOIP worklet');
   }
