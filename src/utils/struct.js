@@ -357,6 +357,84 @@ export class Float_t extends ByteRange_t {
     return data.getFloat32(offset, true);
   }
 };
+export class TwoByteFloatRatio_t extends ByteRange_t {
+  constructor(value) {
+    super(2);
+  }
+  write(data, offset, value) {
+    var SMALL_LIMIT = 10.0;
+    var LARGE_LIMIT = 1000.0;
+    var holder = 0.0;
+    if (value < SMALL_LIMIT) {
+        var SMALL_RATIO_CONVERSION_RATIO = (32767.0 / SMALL_LIMIT); //std::numeric_limits<int16_t>::max()
+        holder = Math.floor(value * SMALL_RATIO_CONVERSION_RATIO);
+    }
+    else {
+        var LARGE_RATIO_CONVERSION_RATIO = (-32768.0 / LARGE_LIMIT); //std::numeric_limits<int16_t>::min()
+        holder = Math.floor((Math.min(value,LARGE_LIMIT) - SMALL_LIMIT) * LARGE_RATIO_CONVERSION_RATIO);
+    }
+    data.setInt16(offset, holder, true);
+  }
+  read(data, offset) {
+    var SMALL_LIMIT = 10.0;
+    var LARGE_LIMIT = 1000.0;
+    var holder = data.getInt16(offset, true);
+    var ratio = 0.0;
+    if (holder > 0) {
+      ratio = (holder / 32767.0) * SMALL_LIMIT; //std::numeric_limits<int16_t>::max()
+    }
+    else {
+      ratio = ((holder / -32768.0) * LARGE_LIMIT) + SMALL_LIMIT;
+    }
+    return ratio;
+  }
+};
+export class TwoByteFloatAngle_t extends ByteRange_t {
+  constructor(value) {
+    super(2);
+  }
+  write(data, offset, value) {
+    var ANGLE_CONVERSION_RATIO = 65535.0 / 360.0; //std::numeric_limits<uint16_t>::max()
+    var angle = Math.floor((value + 180.0)*ANGLE_CONVERSION_RATIO);
+    data.setUint16(offset, angle, true);
+  }
+  read(data, offset) {
+    var angle = data.getUint16(offset, true);
+    var value = (angle / 65535.0) * 360.0 - 180.0; //std::numeric_limits<uint16_t>::max()
+    return value;
+  }
+};
+export class TwoByteClipValue_t extends ByteRange_t {
+  constructor(value) {
+    super(2);
+  }
+  write(data, offset, value) {
+    var SMALL_LIMIT = 10.0;
+    var LARGE_LIMIT = 1000.0;
+    var holder = 0.0;
+    if (value < SMALL_LIMIT) {
+        var SMALL_RATIO_CONVERSION_RATIO = (32767.0 / SMALL_LIMIT); //std::numeric_limits<int16_t>::max()
+        holder = Math.floor(value * SMALL_RATIO_CONVERSION_RATIO);
+    } else {
+        // otherwise we store it as a negative integer
+        holder = -1 * Math.floor(value);
+    }
+    data.setInt16(offset, holder, true);
+  }
+  read(data, offset) {
+    var SMALL_LIMIT = 10.0;
+    var LARGE_LIMIT = 1000.0;
+    var holder = data.getInt16(offset, true);
+    var clipValue = 0.0;
+    if (holder > 0) {
+      clipValue = (holder / 32767.0) * SMALL_LIMIT; //std::numeric_limits<int16_t>::max()
+    }
+    else {
+      clipValue = -1.0 * holder;
+    }
+    return clipValue;
+  }
+};
 export class Double_t extends ByteRange_t {
   constructor(value) {
     super(8);
@@ -416,7 +494,7 @@ export class String_t extends ByteRange_t {
   }
   read(data, offset, value) {
     let byteSize = data.getUint32(offset, true);
-    if (byteSize == 0xfffffff) {
+    if (byteSize == 0xffffffff) {
       return null;
     } else {
       let length = byteSize;
@@ -453,7 +531,7 @@ export class StringUTF16_t extends ByteRange_t {
   }
   read(data, offset, value) {
     let byteSize = data.getUint32(offset, false);
-    if (byteSize == 0xfffffff) {
+    if (byteSize == 0xffffffff) {
       return null;
     } else {
       let length = byteSize / 2;
@@ -463,6 +541,78 @@ export class StringUTF16_t extends ByteRange_t {
       }
       return new TextDecoder("utf-16").decode(chardata);
     }
+  }
+};
+export class Vec3_t extends ByteRange_t {
+  constructor(value) {
+    super(12);
+    this.value = {x: 0, y: 0, z: 0};
+  }
+  write(data, offset, value) {
+      if (!offset) offset = 0;
+      if (typeof value.x != 'number' &&
+          typeof value.y != 'number' &&
+          typeof value.z != 'number') value = {x: 0, y: 0, z: 0};
+
+      data.setFloat32(offset, value.x, true);
+      data.setFloat32(offset+4, value.y, true);
+      data.setFloat32(offset+8, value.z, true);
+  }
+  read(data, offset) {
+    return {x: data.getFloat32(offset, true),
+            y: data.getFloat32(offset+4, true),
+            z: data.getFloat32(offset+8, true)};
+  }
+}
+export class Quat_t extends ByteRange_t {
+  constructor(value) {
+    super(16);
+    this.value = {x: 0, y: 0, z: 0, w: 1};
+  }
+  write(data, offset, value) {
+      if (!offset) offset = 0;
+      if (typeof value.x != 'number' &&
+          typeof value.y != 'number' &&
+          typeof value.z != 'number' &&
+          typeof value.w != 'number') value = {x: 0, y: 0, z: 0, w: 1};
+
+      data.setFloat32(offset, value.x, true);
+      data.setFloat32(offset+4, value.y, true);
+      data.setFloat32(offset+8, value.z, true);
+      data.setFloat32(offset+12, value.w, true);
+  }
+  read(data, offset) {
+    return {x: data.getFloat32(offset, true),
+            y: data.getFloat32(offset+4, true),
+            z: data.getFloat32(offset+8, true),
+            w: data.getFloat32(offset+12, true)};
+  }
+}
+export class SignedTwoByteVec3_t extends ByteRange_t {
+  constructor(value) {
+    super(6);
+    this.value = {x: 0, y: 0, z: 0};
+  }
+  write(data, offset, value) {
+    if (!offset) offset = 0;
+    var TRANSLATION_COMPRESSION_RADIX = 12;
+    var vecX = (value.x * (1 << TRANSLATION_COMPRESSION_RADIX));
+    var vecY = (value.y * (1 << TRANSLATION_COMPRESSION_RADIX));
+    var vecZ = (value.z * (1 << TRANSLATION_COMPRESSION_RADIX));
+
+    data.setInt16(offset, vecX, true);
+    data.setInt16(offset+2, vecY, true);
+    data.setInt16(offset+4, vecZ, true);
+  }
+  read(data, offset) {
+    if (!offset) offset = 0;
+    var TRANSLATION_COMPRESSION_RADIX = 12;
+    var vecX = data.getInt16(offset, true) / (1 << TRANSLATION_COMPRESSION_RADIX);
+    var vecY = data.getInt16(offset+2, true) / (1 << TRANSLATION_COMPRESSION_RADIX);
+    var vecZ = data.getInt16(offset+4, true) / (1 << TRANSLATION_COMPRESSION_RADIX);
+    return {x: vecX,
+            y: vecY,
+            z: vecZ};
   }
 };
 export class SixByteQuat_t extends ByteRange_t {
@@ -619,7 +769,59 @@ console.log('read them', this.value);
 //console.log('total size of structlist:', size);
     
   }
-} 
+}
+export class BitVector_t {
+  constructor() {
+    this.value = [];
+  }
+  size(value) {
+    return Math.ceil(value.length / 8);
+  }
+  read(data, offset, length) {
+    if (!offset) offset = 0;
+    if (!length) length = 8*(data.byteLength - offset);
+
+    this.value = [];
+
+    if (length > 0) {
+      var BITS_IN_BYTE = 8;
+      var bit = 0;
+      for (var i = 0; i < length; i++) {
+          var v = ((data.getUint8(offset) & (1 << bit)) != 0);
+          this.value.push(v);
+          if (++bit == BITS_IN_BYTE) {
+              offset++;
+              bit = 0;
+          }
+      }
+    }
+    return this.value;
+  }
+  write(data, offset, values) {
+    if (!offset) offset = 0;
+
+    if (values.length > 0) {
+      var BITS_IN_BYTE = 8;
+      var byte = 0;
+      var bit = 0;
+      for (let i = 0; i < values.length; i++) {
+        if (values[i]) {
+          byte |= (1 << bit);
+        }
+        if (++bit == BITS_IN_BYTE) {
+          data.setUint8(offset, byte);
+          offset++;
+          byte = 0;
+          bit = 0;
+        }
+      }
+      if (bit != 0) {
+        data.setUint8(offset, byte);
+        offset++;
+      }
+    }
+  }
+}
 export class ByteArray_t {
   constructor() {
     this.value = new Uint8Array();

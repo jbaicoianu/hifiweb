@@ -5,6 +5,7 @@ export class HifiAvatar {
     this.displayName = 'unknown';
     this.position = new THREE.Vector3();
     this.orientation = new THREE.Quaternion();
+    this.view_dir = new THREE.Quaternion();
     this.clearUpdates();
     this.sequenceId = 0;
 
@@ -41,6 +42,9 @@ export class HifiAvatar {
     this.hasUpdates = true;
     this.sendOrientation = true;
   }
+  setViewDir(view_dir) {
+    this.view_dir.copy(view_dir);
+  }
   clearUpdates() {
     this.hasUpdates = false;
     this.sendPosition = false;
@@ -71,7 +75,7 @@ console.log(this.janusobj, displayName);
     //console.log('yup, got some updates', avatarData, this);
     avatarData.updates.forEach(update => {
       if (update instanceof AvatarGlobalPosition) {
-        this.position.set(update.globalPositionX, update.globalPositionY, update.globalPositionZ);
+        this.position.set(update.globalPosition.x, update.globalPosition.y, update.globalPosition.z);
         this.janusobj.pos = this.position;
 //console.log(' - new avatar pos', this.position, update, avatarData, this);
       }

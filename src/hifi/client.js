@@ -1,5 +1,6 @@
 import { PacketReceiver } from './packetreceiver.js';
 import { HifiNode, NodeType, NodeTypeMap } from './node.js';
+import { ConicalViewFrustum } from './packets.js';
 import { HifiAvatar } from './avatar.js';
 import { HifiAvatarManager } from './avatarmanager.js';
 import { VOIP } from '../voip/voip.js';
@@ -231,6 +232,21 @@ console.log('start avatar updates', this.sessionUUID);
       let pack = this.nodes.avatar.createPacket('AvatarData');
       pack.payload.updateFromAvatar(this.avatar);
       this.nodes.avatar.sendPacket(pack);
+
+      let pack2 = this.nodes.avatar.createPacket('AvatarQuery');
+      pack2.payload.numberOfViews = 1;
+      var views = [];
+      let view = new ConicalViewFrustum();
+      view.position = this.avatar.position;
+      view.direction =  this.avatar.view_dir;
+      view.angle = 1.0; //DEFAULT_VIEW_ANGLE
+      view.clip = 100.0; //DEFAULT_VIEW_FAR_CLIP
+      view.radius = 10.0; //DEFAULT_VIEW_RADIUS
+      views.push(view);
+      pack2.payload.views = views;
+      this.nodes.avatar.sendPacket(pack2);
+      //console.log(pack2);
+
       this.avatar.clearUpdates();
     }
   }
@@ -351,10 +367,10 @@ console.log('start avatar updates', this.sessionUUID);
       }
     }
     if (newconnection) {
-setTimeout(() => {
-      this.startAvatarUpdates();
-      this.startNegotiateAudioFormatTimer();
-}, 500);
+      setTimeout(() => {
+            this.startAvatarUpdates();
+            this.startNegotiateAudioFormatTimer();
+      }, 500);
     }
   }
   handleAvatarIdentity(packet) {
@@ -393,19 +409,10 @@ console.log('got selected audio format', packet);
     pack.payload.sequence = this.audioSequence++;
     pack.payload.codec = '';
     pack.payload.channelFlag = 1;
-    pack.payload.positionX = this.avatar.position.x;
-    pack.payload.positionY = this.avatar.position.y;
-    pack.payload.positionZ = this.avatar.position.z;
-    pack.payload.orientationX = this.avatar.orientation.x;
-    pack.payload.orientationY = this.avatar.orientation.y;
-    pack.payload.orientationZ = this.avatar.orientation.z;
-    pack.payload.orientationW = this.avatar.orientation.w;
-    pack.payload.boundingBoxCornerX = this.avatar.position.x;
-    pack.payload.boundingBoxCornerY = this.avatar.position.y;
-    pack.payload.boundingBoxCornerZ = this.avatar.position.z;
-    pack.payload.boundingBoxScaleX = 0;
-    pack.payload.boundingBoxScaleY = 0;
-    pack.payload.boundingBoxScaleZ = 0;
+    pack.payload.position = this.avatar.position;
+    pack.payload.orientation = this.avatar.orientation;
+    pack.payload.boundingBoxCorner = this.avatar.position;
+    pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
     pack.payload.audioData = packet.audioData;
     this.nodes.audio.sendPacket(pack);*/
 
@@ -425,19 +432,10 @@ console.log('got selected audio format', packet);
 
     pack.payload.sequence = this.audioSequence++;
     pack.payload.codec = '';
-    pack.payload.positionX = this.avatar.position.x;
-    pack.payload.positionY = this.avatar.position.y;
-    pack.payload.positionZ = this.avatar.position.z;
-    pack.payload.orientationX = this.avatar.orientation.x;
-    pack.payload.orientationY = this.avatar.orientation.y;
-    pack.payload.orientationZ = this.avatar.orientation.z;
-    pack.payload.orientationW = this.avatar.orientation.w;
-    pack.payload.boundingBoxCornerX = this.avatar.position.x;
-    pack.payload.boundingBoxCornerY = this.avatar.position.y;
-    pack.payload.boundingBoxCornerZ = this.avatar.position.z;
-    pack.payload.boundingBoxScaleX = 0;
-    pack.payload.boundingBoxScaleY = 0;
-    pack.payload.boundingBoxScaleZ = 0;
+    pack.payload.position = this.avatar.position;
+    pack.payload.orientation = this.avatar.orientation;
+    pack.payload.boundingBoxCorner = this.avatar.position;
+    pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
 
     this.nodes.audio.sendPacket(pack);
   }

@@ -506,12 +506,35 @@ const AvatarDataHasFlags = new Flags([
   'grab_joints'
 ]);
 
+const AdditionalFlagValues = new Flags([
+    'x5',
+    'x4',
+    'x3',
+    'x2',
+    'x1',
+    'x0',
+    'procedural_blink_face_movement',
+    'procedural_eye_face_movement',
+    'audio_enabled_face_movement',
+    'hand_state_finger_pointing',
+    'has_referential',
+    'is_eye_tracker_connected',
+    'is_face_tracker_connected',
+    'hand_state_1',
+    'hand_state_0',
+    'key_state_1',
+    'key_state_0'
+]);
+
 class AvatarDataUpdates extends struct.define({
   //uuid: new struct.UUID_t,
   hasFlags: new struct.Uint16_t,
   //sequenceId: new struct.Uint16_t,
   updates: new struct.StructList_t
 }) {
+  size() {
+    return this.byteSize;
+  }
   read(data, offset) {
     let buf = super.read(data, offset);
 
@@ -529,8 +552,8 @@ class AvatarDataUpdates extends struct.define({
         hasAvatarLocalPosition   = this.hasFlag(AvatarDataHasFlags.avatar_local_position),
         hasFaceTrackerInfo       = this.hasFlag(AvatarDataHasFlags.face_tracker_info),
         hasJointData             = this.hasFlag(AvatarDataHasFlags.joint_data),
-        hasJointDefaultPoseFlags = this.hasFlag(AvatarDataHasFlags.joint_default_pose_flags),
-        hasGrabJoints            = this.hasFlag(AvatarDataHasFlags.grab_joints);
+        hasGrabJoints            = this.hasFlag(AvatarDataHasFlags.grab_joints),
+        hasJointDefaultPoseFlags = this.hasFlag(AvatarDataHasFlags.joint_default_pose_flags);
 
 /*
 console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
@@ -565,9 +588,11 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
     if (hasParentInfo) idx += this.readAvatarUpdate(data, offset + idx, ParentInfo);
     if (hasAvatarLocalPosition) idx += this.readAvatarUpdate(data, offset + idx, AvatarLocalPosition);
     if (hasFaceTrackerInfo) idx += this.readAvatarUpdate(data, offset + idx, FaceTrackerInfo);
-    //if (hasJointData) idx += this.readAvatarUpdate(data, offset + idx, JointData);
-    //if (hasJointDataDefaultPoseFlags) idx += this.readAvatarUpdate(data, offset + idx, JointDataDefaultPoseFlags);
-    //if (hasGrabJoints) idx += this.readAvatarUpdate(data, offset + idx, GrabJoints);
+    if (hasJointData) idx += this.readAvatarUpdate(data, offset + idx, JointData);
+    if (hasJointData && hasGrabJoints) idx += this.readAvatarUpdate(data, offset + idx, FarGrabJoints);
+    if (hasJointDefaultPoseFlags) idx += this.readAvatarUpdate(data, offset + idx, JointDataDefaultPoseFlags);
+
+    this.byteSize = idx;
   }
   readAvatarUpdate(data, offset, type) {
     let update = new type();
@@ -581,54 +606,43 @@ console.log('avatardata', this, AvatarDataHasFlags, this.hasFlags,
     this.updates = [];
     //this.uuid = avatar.uuid;
 
-    let hasFlags = 0;
+    this.hasFlags = 0;
+    this.byteSize = 0;
     if (avatar.sendPosition) {
-      hasFlags |= AvatarDataHasFlags.avatar_global_position;
+      this.hasFlags |= AvatarDataHasFlags.avatar_global_position;
       let update = new AvatarGlobalPosition();
-      update.globalPositionX = avatar.position.x;
-      update.globalPositionY = avatar.position.y;
-      update.globalPositionZ = avatar.position.z;
+      update.globalPosition = avatar.position;
       this.updates.push(update);
+      this.byteSize += 12;
     }
     if (avatar.sendOrientation) {
-      hasFlags |= AvatarDataHasFlags.avatar_orientation;
+      this.hasFlags |= AvatarDataHasFlags.avatar_orientation;
       let update = new AvatarOrientation();
-      update.orientation.x = avatar.orientation.x;
-      update.orientation.y = avatar.orientation.y;
-      update.orientation.z = avatar.orientation.z;
-      update.orientation.w = avatar.orientation.w;
+      update.orientation = avatar.orientation
       this.updates.push(update);
+      this.byteSize += 16;
     }
-    this.hasFlags = hasFlags;
   }
   hasFlag(flag) {
-    return (this.hasFlags & flag) == flag
+    return (this.hasFlags & flag) == flag;
   }
 };
 
 class AvatarGlobalPosition extends struct.define({
-  globalPositionX: new struct.Float_t,
-  globalPositionY: new struct.Float_t,
-  globalPositionZ: new struct.Float_t
+  globalPosition: new struct.Vec3_t
 }) { };
 class AvatarBoundingBox extends struct.define({
-  sizeX: new struct.Float_t,
-  sizeY: new struct.Float_t,
-  sizeZ: new struct.Float_t,
-  originX: new struct.Float_t,
-  originY: new struct.Float_t,
-  originZ: new struct.Float_t
+  boxSize: new struct.Vec3_t,
+  origin: new struct.Vec3_t
 }) { };
 class AvatarOrientation extends struct.define({
   orientation: new struct.SixByteQuat_t,
 }) { };
 class AvatarScale extends struct.define({
-  scale: new struct.Uint16_t, // FIXME - the native client uses something called a SmallFloat here, "compressed by packFloatRatioToTwoByte"
+  scale: new struct.TwoByteFloatRatio_t,
 }) { };
 class LookAtPosition extends struct.define({
-  lookAtPositionX: new struct.Float_t,
-  lookAtPositionY: new struct.Float_t,
-  lookAtPositionZ: new struct.Float_t
+  lookAtPosition: new struct.Vec3_t
 }) { };
 class AudioLoudness extends struct.define({
   audioLoudness: new struct.Uint8_t
@@ -636,9 +650,7 @@ class AudioLoudness extends struct.define({
 class SensorToWorldMatrix extends struct.define({
   sensorToWorldQuat: new struct.SixByteQuat_t,
   sensorToWorldScale: new struct.Uint16_t,
-  sensorToWorldTransX: new struct.Float_t,
-  sensorToWorldTransY: new struct.Float_t,
-  sensorToWorldTransZ: new struct.Float_t,
+  sensorToWorldTrans: new struct.Vec3_t,
 }) { };
 class AdditionalFlags extends struct.define({
   flags: new struct.Uint16_t
@@ -648,52 +660,165 @@ class ParentInfo extends struct.define({
   parentJointIndex: new struct.Uint16_t
 }) { };
 class AvatarLocalPosition extends struct.define({
-  localPositionX: new struct.Float_t,
-  localPositionY: new struct.Float_t,
-  localPositionZ: new struct.Float_t
+  localPosition: new struct.Vec3_t
 }) { };
 class FaceTrackerInfo extends struct.define({
   leftEyeBlink: new struct.Float_t,
   rightEyeBlink: new struct.Float_t,
   averageLoudness: new struct.Float_t,
   browAudioLift: new struct.Float_t,
-  numBlendshapeCoefficients: new struct.Uint8_t
-}) { };
+  numBlendshapeCoefficients: new struct.Uint8_t,
+  blendshapeCoefficients: new struct.StructList_t
+}) {
+  size() {
+    return 1 + 16 + 4*this.numBlendshapeCoefficients;
+  }
+  read(data, offset) {
+    if (!offset) offset = 0;
+
+    let buf = new DataView(data, 0);
+
+    let leftEyeBlink = new struct.Float_t;
+    this.leftEyeBlink = leftEyeBlink.read(buf,offset);
+    offset += 4;
+
+    let rightEyeBlink = new struct.Float_t;
+    this.rightEyeBlink = rightEyeBlink.read(buf,offset);
+    offset += 4;
+
+    let averageLoudness = new struct.Float_t;
+    this.averageLoudness = averageLoudness.read(buf,offset);
+    offset += 4;
+
+    let browAudioLift = new struct.Float_t;
+    this.browAudioLift = browAudioLift.read(buf,offset);
+    offset += 4;
+
+    let numBlendshapeCoefficients = new struct.Uint8_t;
+    this.numBlendshapeCoefficients = numBlendshapeCoefficients.read(buf,offset);
+    offset += 1;
+
+    if (this.numBlendshapeCoefficients > 0) {
+      for (let i = 0; i < this.numBlendshapeCoefficients; i++) {
+        let blendshapeCoefficient = new struct.Float_t;
+        this.numBlendshapeCoefficients.push(blendshapeCoefficient.read(buf,offset));
+        offset += 4;
+      }
+    }
+  }
+};
 class JointData extends struct.define({
-  rotationX: new struct.Float_t,
-  rotationY: new struct.Float_t,
-  rotationZ: new struct.Float_t,
-  rotationW: new struct.Float_t,
-  positionX: new struct.Float_t,
-  positionY: new struct.Float_t,
-  positionZ: new struct.Float_t,
-  rotationSet: new struct.Boolean_t,
-  translationSet: new struct.Boolean_t,
-}) { };
+  numJoints: new struct.Uint8_t,
+  validityBitsRotations: new struct.BitVector_t,
+  rotations: new struct.StructList_t,
+  validityBitsTranslations: new struct.BitVector_t,
+  translations: new struct.StructList_t,
+  fauxJoint0Rotation: new struct.SixByteQuat_t,
+  fauxJoint0Translation: new struct.SignedTwoByteVec3_t,
+  fauxJoint1Rotation: new struct.SixByteQuat_t,
+  fauxJoint1Translation: new struct.SignedTwoByteVec3_t,
+}) {
+  size() {
+    return 1 + 2*(Math.ceil(this.numJoints / 8)) + 6*this.rotations.length + 6*this.translations.length + 24;
+  }
+  read(data, offset) {
+    if (!offset) offset = 0;
+
+    let buf = new DataView(data, 0);
+
+    this.numJoints = buf.getUint8(offset);
+    offset++;
+
+    this.rotations = [];
+    this.translations = [];
+
+    if (this.numJoints > 0) {
+      var validityBitsRotations = new struct.BitVector_t;
+      this.validityBitsRotations = validityBitsRotations.read(buf, offset, this.numJoints);
+      offset += Math.ceil(this.numJoints / 8);
+
+      for (var i = 0; i < this.validityBitsRotations.length; i++) {
+        if (this.validityBitsRotations[i]) {
+          let rot = new struct.SixByteQuat_t;
+          this.rotations.push(rot.read(buf,offset));
+          offset += 6;
+        }
+      }
+
+      var validityBitsTranslations = new struct.BitVector_t;
+      this.validityBitsTranslations = validityBitsTranslations.read(buf, offset, this.numJoints);
+      offset += Math.ceil(this.numJoints / 8);
+
+      for (var i = 0; i < this.validityBitsTranslations.length; i++) {
+        if (this.validityBitsTranslations[i]) {
+          let trans = new struct.SignedTwoByteVec3_t;
+          this.translations.push(trans.read(buf,offset));
+          offset += 6;
+        }
+      }
+    }
+
+    let f0r = new struct.SixByteQuat_t;
+    this.fauxJoint0Rotation = f0r.read(buf,offset);
+    offset += 6;
+
+    let f0t = new struct.SignedTwoByteVec3_t;
+    this.fauxJoint0Translation = f0t.read(buf,offset);
+    offset += 6;
+
+    let f1r = new struct.SixByteQuat_t;
+    this.fauxJoint1Rotation = f1r.read(buf,offset);
+    offset += 6;
+
+    let f1t = new struct.SignedTwoByteVec3_t;
+    this.fauxJoint1Translation = f1t.read(buf,offset);
+    offset += 6;
+  }
+};
 class FarGrabJoints extends struct.define({
-  leftFarGrabPositionX: new struct.Float_t,
-  leftFarGrabPositionY: new struct.Float_t,
-  leftFarGrabPositionZ: new struct.Float_t,
-  leftFarGrabRotationX: new struct.Float_t,
-  leftFarGrabRotationY: new struct.Float_t,
-  leftFarGrabRotationZ: new struct.Float_t,
-  leftFarGrabRotationW: new struct.Float_t,
+  leftFarGrabPosition: new struct.Vec3_t,
+  leftFarGrabRotation: new struct.Quat_t,
 
-  rightFarGrabPositionX: new struct.Float_t,
-  rightFarGrabPositionY: new struct.Float_t,
-  rightFarGrabPositionZ: new struct.Float_t,
-  rightFarGrabRotationX: new struct.Float_t,
-  rightFarGrabRotationY: new struct.Float_t,
-  rightFarGrabRotationZ: new struct.Float_t,
-  rightFarGrabRotationW: new struct.Float_t,
+  rightFarGrabPosition: new struct.Vec3_t,
+  rightFarGrabRotation: new struct.Quat_t,
 
-  mouseFarGrabPositionX: new struct.Float_t,
-  mouseFarGrabPositionY: new struct.Float_t,
-  mouseFarGrabPositionZ: new struct.Float_t,
-  mouseFarGrabRotationX: new struct.Float_t,
-  mouseFarGrabRotationY: new struct.Float_t,
-  mouseFarGrabRotationZ: new struct.Float_t,
-  mouseFarGrabRotationW: new struct.Float_t,
+  mouseFarGrabPosition: new struct.Vec3_t,
+  mouseFarGrabRotation: new struct.Quat_t,
+}) { };
+class JointDataDefaultPoseFlags extends struct.define({
+  numJoints: new struct.Uint8_t,
+  rotations: new struct.BitVector_t,
+  translations: new struct.BitVector_t
+}) {
+  size() {
+    return 1 + 2*(Math.ceil(this.numJoints / 8));
+  }
+  read(data, offset) {
+    if (!offset) offset = 0;
+
+    let buf = new DataView(data, 0);
+
+    this.numJoints = buf.getUint8(offset);
+    offset++;
+
+    if (this.numJoints > 0) {
+      var rotations = new struct.BitVector_t;
+      this.rotations = rotations.read(buf, offset, this.numJoints);
+      offset += Math.ceil(this.numJoints / 8);
+
+      var translations = new struct.BitVector_t;
+      this.translations = translations.read(buf, offset, this.numJoints);
+      offset += Math.ceil(this.numJoints / 8);
+    }
+  }
+};
+
+class ConicalViewFrustum extends struct.define({
+  position: new struct.Vec3_t,
+  direction: new struct.Vec3_t,
+  angle: new struct.TwoByteFloatAngle_t,
+  clip: new struct.TwoByteClipValue_t,
+  radius: new struct.Float_t,
 }) { };
 
 class AvatarIdentity extends struct.define({
@@ -725,14 +850,25 @@ class AvatarData extends struct.define({
 class BulkAvatarData extends struct.define({
   updates: new struct.StructList_t,
 }) {
+  getDataBytes() {
+    if (typeof this.bytes != 'undefined') {
+      return new Uint8Array(this.bytes.buffer, this.bytes.byteOffset + this.byteOffset);
+    }
+    else {
+      return super.getDataBytes();
+    }
+  }
   read(data, offset) {
     let idx = 0;
+    this.bytes = data;
+    this.byteOffset = offset;
     this.updates = [];
+    //let i = 0;
     while (idx < data.byteLength - offset) {
       let update = this.readAvatarUpdate(data, offset + idx);
       this.updates.push(update);
+      //console.log("avatar",i++,update);
       idx += update.size();
-      break; // FIXME - just do one avatar for now, until we get AvatarData packet parsing nailed down
     }
   }
   readAvatarUpdate(data, offset) {
@@ -746,33 +882,34 @@ class BulkAvatarDataUpdate extends struct.define({
   uuid: new struct.UUID_t,
   avatardata: new struct.Struct_t,
 }) {
+  size() {
+    return this.byteSize;
+  }
   read(data, offset) {
     super.read(data, offset);
     this.avatardata = new AvatarDataUpdates();
     this.avatardata.read(data, offset + 16);
+    this.byteSize = this.avatardata.size() + 16;
   }
 };
 class KillAvatar extends struct.define({
   uuid: new struct.UUID_t,
   reason: new struct.Uint8_t,
 }) { };
+class AvatarQuery extends struct.define({
+  numberOfViews: new struct.Uint8_t,
+  views: new struct.StructList_t,
+}) {
+  static version() { return 22; }
+};
 class SilentAudioFrame extends struct.define({
   sequence: new struct.Uint16_t,
   codec: new struct.String_t,
   samples: new struct.Int16_t,
-  positionX: new struct.Float_t,
-  positionY: new struct.Float_t,
-  positionZ: new struct.Float_t,
-  orientationX: new struct.Float_t,
-  orientationY: new struct.Float_t,
-  orientationZ: new struct.Float_t,
-  orientationW: new struct.Float_t,
-  boundingBoxCornerX: new struct.Float_t,
-  boundingBoxCornerY: new struct.Float_t,
-  boundingBoxCornerZ: new struct.Float_t,
-  boundingBoxScaleX: new struct.Float_t,
-  boundingBoxScaleY: new struct.Float_t,
-  boundingBoxScaleZ: new struct.Float_t,
+  position: new struct.Vec3_t,
+  orientation: new struct.Quat_t,
+  boundingBoxCorner: new struct.Vec3_t,
+  boundingBoxScale: new struct.Vec3_t,
 }) {
   static version() { return 23; }
   read() {
@@ -790,19 +927,10 @@ class MicrophoneAudioNoEcho extends struct.define({
   sequence: new struct.Uint16_t,
   codec: new struct.String_t,
   channelFlag: new struct.Boolean_t,
-  positionX: new struct.Float_t,
-  positionY: new struct.Float_t,
-  positionZ: new struct.Float_t,
-  orientationX: new struct.Float_t,
-  orientationY: new struct.Float_t,
-  orientationZ: new struct.Float_t,
-  orientationW: new struct.Float_t,
-  boundingBoxCornerX: new struct.Float_t,
-  boundingBoxCornerY: new struct.Float_t,
-  boundingBoxCornerZ: new struct.Float_t,
-  boundingBoxScaleX: new struct.Float_t,
-  boundingBoxScaleY: new struct.Float_t,
-  boundingBoxScaleZ: new struct.Float_t,
+  position: new struct.Vec3_t,
+  orientation: new struct.Quat_t,
+  boundingBoxCorner: new struct.Vec3_t,
+  boundingBoxScale: new struct.Vec3_t,
   audioData: new struct.ByteArray_t
 }) {
   static version() { return 23; }
@@ -819,6 +947,7 @@ var PacketTypeDefs = {
   AvatarData: AvatarData,
   BulkAvatarData: BulkAvatarData,
   KillAvatar: KillAvatar,
+  AvatarQuery: AvatarQuery,
   SilentAudioFrame: SilentAudioFrame,
   MixedAudio: MixedAudio,
   MicrophoneAudioNoEcho: MicrophoneAudioNoEcho,
@@ -851,6 +980,7 @@ export {
   AvatarData,
   BulkAvatarData,
   KillAvatar,
+  AvatarQuery,
   SilentAudioFrame,
   MixedAudio,
   MicrophoneAudioNoEcho,
@@ -872,5 +1002,6 @@ export {
   AvatarLocalPosition,
   FaceTrackerInfo,
   JointData,
-  FarGrabJoints
+  FarGrabJoints,
+  ConicalViewFrustum
 };
