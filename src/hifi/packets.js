@@ -688,32 +688,35 @@ class JointData extends struct.define({
 
     let buf = new DataView(data, 0);
 
-    this.numJoints = buf.getUint8(offset++);
+    this.numJoints = buf.getUint8(offset);
+    offset++;
 
     this.rotations = [];
     this.translations = [];
 
-    var validityBitsRotations = new struct.BitVector_t;
-    this.validityBitsRotations = validityBitsRotations.read(buf, offset, this.numJoints);
-    offset += Math.ceil(this.numJoints / 8);
+    if (this.numJoints > 0) {
+      var validityBitsRotations = new struct.BitVector_t;
+      this.validityBitsRotations = validityBitsRotations.read(buf, offset, this.numJoints);
+      offset += Math.ceil(this.numJoints / 8);
 
-    for (var i = 0; i < this.validityBitsRotations.length; i++) {
-      if (this.validityBitsRotations[i]) {
-        let rot = new struct.SixByteQuat_t;
-        this.rotations.push(rot.read(buf,offset));
-        offset += 6;
+      for (var i = 0; i < this.validityBitsRotations.length; i++) {
+        if (this.validityBitsRotations[i]) {
+          let rot = new struct.SixByteQuat_t;
+          this.rotations.push(rot.read(buf,offset));
+          offset += 6;
+        }
       }
-    }
 
-    var validityBitsTranslations = new struct.BitVector_t;
-    this.validityBitsTranslations = validityBitsTranslations.read(buf, offset, this.numJoints);
-    offset += Math.ceil(this.numJoints / 8);
+      var validityBitsTranslations = new struct.BitVector_t;
+      this.validityBitsTranslations = validityBitsTranslations.read(buf, offset, this.numJoints);
+      offset += Math.ceil(this.numJoints / 8);
 
-    for (var i = 0; i < this.validityBitsTranslations.length; i++) {
-      if (this.validityBitsTranslations[i]) {
-        let trans = new struct.SignedTwoByteVec3_t;
-        this.translations.push(trans.read(buf,offset));
-        offset += 6;
+      for (var i = 0; i < this.validityBitsTranslations.length; i++) {
+        if (this.validityBitsTranslations[i]) {
+          let trans = new struct.SignedTwoByteVec3_t;
+          this.translations.push(trans.read(buf,offset));
+          offset += 6;
+        }
       }
     }
 
@@ -757,15 +760,18 @@ class JointDataDefaultPoseFlags extends struct.define({
 
     let buf = new DataView(data, 0);
 
-    this.numJoints = buf.getUint8(offset++);
+    this.numJoints = buf.getUint8(offset);
+    offset++;
 
-    var rotations = new struct.BitVector_t;
-    this.rotations = rotations.read(buf, offset, this.numJoints);
-    offset += Math.ceil(this.numJoints / 8);
+    if (this.numJoints > 0) {
+      var rotations = new struct.BitVector_t;
+      this.rotations = rotations.read(buf, offset, this.numJoints);
+      offset += Math.ceil(this.numJoints / 8);
 
-    var translations = new struct.BitVector_t;
-    this.translations = translations.read(buf, offset, this.numJoints);
-    offset += Math.ceil(this.numJoints / 8);
+      var translations = new struct.BitVector_t;
+      this.translations = translations.read(buf, offset, this.numJoints);
+      offset += Math.ceil(this.numJoints / 8);
+    }
   }
 };
 

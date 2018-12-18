@@ -785,13 +785,15 @@ export class BitVector_t {
 
     if (length > 0) {
       var BITS_IN_BYTE = 8;
-      var byte = data.getUint8(offset++);
+      var byte = data.getUint8(offset);
+      offset++;
       var bit = 0;
       for (var i = 0; i < length; i++) {
         var v = (byte & (1 << bit)) != 0;
         this.value.push(v);
         if (++bit == BITS_IN_BYTE) {
-          byte = data.getUint8(offset++);
+          byte = data.getUint8(offset);
+          offset++;
           bit = 0;
         }
       }
@@ -810,13 +812,15 @@ export class BitVector_t {
           byte |= (1 << bit);
         }
         if (++bit == BITS_IN_BYTE) {
-          data.setUint8(offset++, byte);
+          data.setUint8(offset, byte);
+          offset++;
           byte = 0;
           bit = 0;
         }
       }
       if (bit != 0) {
-        data.setUint8(offset++, byte);
+        data.setUint8(offset, byte);
+        offset++;
       }
     }
   }
