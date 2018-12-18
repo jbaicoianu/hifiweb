@@ -863,11 +863,11 @@ class BulkAvatarData extends struct.define({
     this.bytes = data;
     this.byteOffset = offset;
     this.updates = [];
-    let i = 0;
+    //let i = 0;
     while (idx < data.byteLength - offset) {
       let update = this.readAvatarUpdate(data, offset + idx);
       this.updates.push(update);
-      console.log("avatar",i++,update);
+      //console.log("avatar",i++,update);
       idx += update.size();
     }
   }
