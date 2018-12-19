@@ -62,7 +62,12 @@ console.log(this.janusobj, displayName);
     let pack = node.createPacket('AvatarIdentity');
     pack.payload.avatarSessionUUID = this.uuid;
     pack.flags.reliable = true;
-    pack.payload.displayName = this.displayName
+    pack.payload.numAttachments = 0;
+    pack.payload.attachmentData = [];
+    pack.payload.displayName = this.displayName;
+    pack.payload.sessionDisplayName = this.displayName;
+    pack.payload.isReplicated = false;
+    pack.payload.lookAtSnappingEnabled = false;
     node.sendPacket(pack);
   }
   processAvatarIdentity(identity) {

@@ -21,7 +21,6 @@ class HifiClient extends EventTarget {
       this.domain = domaininput.value;
     }
 
-
     this.startTime = new Date().getTime();
     /*
     this.packetdebugger = document.createElement('struct-viewer');
@@ -218,6 +217,10 @@ console.log('negotiate audio!', pack, pack.hmac);
 
 console.log('start avatar updates', this.sessionUUID);
     this.avatar = this.avatars.newOrExistingAvatar(this.sessionUUID);
+    let displayname = document.getElementById('displaynameinput');
+    if (displayname && displayname.value) {
+      this.avatar.setDisplayName(displayname.value);
+    }
     this.avatar.sendIdentityPacket(this.nodes.avatar);
 
     setInterval(() => this.sendAvatarUpdate(), 20);

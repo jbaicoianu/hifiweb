@@ -838,6 +838,7 @@ class AttachmentData extends struct.define({
 class AvatarIdentity extends struct.define({
   avatarSessionUUID: new struct.UUID_t,
   identitySequenceNumber: new struct.Uint32BE_t,
+  numAttachments: new struct.Uint32BE_t,
   attachmentData: new struct.StructList_t,
   displayName: new struct.StringUTF16_t,
   sessionDisplayName: new struct.StringUTF16_t,

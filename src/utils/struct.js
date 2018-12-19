@@ -486,10 +486,15 @@ export class String_t extends ByteRange_t {
     if (typeof value != 'string') value = String(value);
 
     let length = value.length;
-    data.setUint32(offset, length, true);
-    for (let i = 0; i < length; i++) {
-      data.setUint8(offset + 4 + i, value.charCodeAt(i));
-      //data.setUint8(offset + 4 + i * 2 + 1, value.charCodeAt(i), true);
+    if (length == 0){
+      data.setUint32(offset, 0xffffffff, true);
+    }
+    else {
+      data.setUint32(offset, length, true);
+      for (let i = 0; i < length; i++) {
+        data.setUint8(offset + 4 + i, value.charCodeAt(i));
+        //data.setUint8(offset + 4 + i * 2 + 1, value.charCodeAt(i), true);
+      }
     }
   }
   read(data, offset, value) {
