@@ -529,14 +529,9 @@ export class StringUTF16_t extends ByteRange_t {
     if (typeof value != 'string') value = String(value);
 
     let length = value.length;
-    if (length == 0){
-      data.setUint32(offset, 0xffffffff, true);
-    }
-    else {
-      data.setUint32(offset, length * 2, false);
-      for (let i = 0; i < length; i++) {
-        data.setUint16(offset + 4 + i * 2, value.charCodeAt(i), false);
-      }
+    data.setUint32(offset, length * 2, false);
+    for (let i = 0; i < length; i++) {
+      data.setUint16(offset + 4 + i * 2, value.charCodeAt(i), false);
     }
   }
   read(data, offset, value) {
