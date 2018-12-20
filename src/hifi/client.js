@@ -425,22 +425,29 @@ console.log('got selected audio format', packet);
     //console.log('silent audio');
     let pack;
     if (this.audiobuffer.length > 0) {
-      pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
-      pack.payload.channelFlag = 0;
-      pack.payload.audioData = this.audiobuffer.shift();
+      while (this.audiobuffer.length > 0) {
+        pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
+        pack.payload.channelFlag = 0;
+        pack.payload.audioData = this.audiobuffer.shift();
+        pack.payload.sequence = this.audioSequence++;
+        pack.payload.codec = '';
+        pack.payload.position = this.avatar.position;
+        pack.payload.orientation = this.avatar.orientation;
+        pack.payload.boundingBoxCorner = this.avatar.position;
+        pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
+        this.nodes.audio.sendPacket(pack);
+      }
     } else {
       pack = this.nodes.audio.createPacket('SilentAudioFrame');
       pack.payload.samples = 480;
+      pack.payload.sequence = this.audioSequence++;
+      pack.payload.codec = '';
+      pack.payload.position = this.avatar.position;
+      pack.payload.orientation = this.avatar.orientation;
+      pack.payload.boundingBoxCorner = this.avatar.position;
+      pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
+      this.nodes.audio.sendPacket(pack);
     }
-
-    pack.payload.sequence = this.audioSequence++;
-    pack.payload.codec = '';
-    pack.payload.position = this.avatar.position;
-    pack.payload.orientation = this.avatar.orientation;
-    pack.payload.boundingBoxCorner = this.avatar.position;
-    pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
-
-    this.nodes.audio.sendPacket(pack);
   }
   handleVOIPData(ev) {
     this.audiobuffer.push(ev.detail);
