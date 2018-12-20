@@ -7,18 +7,22 @@ export class VOIP extends EventTarget {
     console.log('init voip', this);
 
     this.context = new AudioContext();
-    this.context.audioWorklet.addModule('src/voip/voip-worklet-processor.js').then(() => {
-      this.worklet = new VOIPWorkletNode(this.context, 'voip-worklet-processor-pcm');
-      this.worklet.connect(this.context.destination);
-      if (this.audiosource) {
-        this.audiosource.connect(this.worklet);
-      }
-      this.worklet.port.onmessage = (ev) => this.handleMessage(ev);
-    }).catch((e, v) => {
-      console.error('VOIP worklet failed to initialize', e, e.message);
-    });
-    document.body.addEventListener('keydown', (ev) => this.handleKeyDown(ev));
-    document.body.addEventListener('keyup', (ev) => this.handleKeyUp(ev));
+    if (this.context.audioWorklet) {
+      this.context.audioWorklet.addModule('src/voip/voip-worklet-processor.js').then(() => {
+        this.worklet = new VOIPWorkletNode(this.context, 'voip-worklet-processor-pcm');
+        this.worklet.connect(this.context.destination);
+        if (this.audiosource) {
+          this.audiosource.connect(this.worklet);
+        }
+        this.worklet.port.onmessage = (ev) => this.handleMessage(ev);
+      }).catch((e, v) => {
+        console.error('VOIP worklet failed to initialize', e, e.message);
+      });
+      document.body.addEventListener('keydown', (ev) => this.handleKeyDown(ev));
+      document.body.addEventListener('keyup', (ev) => this.handleKeyUp(ev));
+    } else {
+      console.log('no worklet support, disabling VOIP');
+    }
   }
   processVOIPData(data) {
     this.worklet.processVOIPData(data);
