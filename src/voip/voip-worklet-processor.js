@@ -1,5 +1,6 @@
 import { RingBuffer } from '../utils/ringbuffer.js';
 import { Resampler } from './resampler.js';
+import { DependencyManager } from '../hifi/dependencymanager.js';
 //import { pako } from '../utils/zlib.js';
 
 export class VOIPWorkletProcessor extends AudioWorkletProcessor {
@@ -9,8 +10,9 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
     this.inputbuffer = new RingBuffer();
     this.sampleRate = 24000;
     this.inputChunkSize = 240;
-    this.port.onmessage = (event) => this.handleMessage(event.data);
+    this.port.onmessage = (event) => this.handleMessage(event);
     console.log('Initialized VOIP worklet');
+    this.nodelist = DependencyManager.get('NodeList');
   }
   process(inputs, outputs, parameters) {
     // Output buffered audio data as received from MixedAudio packets
@@ -48,14 +50,32 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
         inbuffer[i] = (chunk[i]) * 32768;
       }
 
-      // Send encoded audio stream data back to the main thread
-      this.port.postMessage({
-        type: 'micdata',
-        buffer: inbuffer
-      });
+      this.sendAudioPacket(inbuffer);
     }
 
     return true;
+  }
+  sendAudioPacket(audiodata) {
+    let pack;
+    if (audiodata.length > 0) {
+      pack = this.nodelist.createPacket('MicrophoneAudioNoEcho');
+      pack.payload.channelFlag = 0;
+      pack.payload.audioData = audiodata;
+    } else {
+      pack = this.nodelist.createPacket('SilentAudioFrame');
+      pack.payload.samples = 480;
+    }
+
+    pack.payload.sequence = this.audioSequence++;
+    pack.payload.codec = '';
+/*
+    pack.payload.position = this.avatar.position;
+    pack.payload.orientation = this.avatar.orientation;
+    pack.payload.boundingBoxCorner = this.avatar.position;
+*/
+    pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
+
+    this.nodelist.sendPacket(pack, 'audio');
   }
   handleMessage(message) {
     console.warn('VOIPWorkletProcessor called handleMessage() on base class');
@@ -63,11 +83,18 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
 };
 export class VOIPWorkletProcessorPCM extends VOIPWorkletProcessor {
   handleMessage(message) {
+    if (message.data.messageport) {
+      //this.dataport = message.data.messageport;
+      //this.dataport.addEventListener('message', (ev) => console.log('audio worklet got message', ev));
+      //this.dataport.start();
+      this.nodelist.setDataPort(message.data.messageport);
+      return;
+    }
     //console.log('worklet got data' + ' ' + message.buffer.byteLength + ', ' + message.buffer.byteOffset);
     // FIXME - it seems the data we're getting is a bit longer than the 960 bytes we expect.  Do we have a byte offset issue?
-    let bufview = new DataView(message.buffer, message.byteOffset);
+    let bufview = new DataView(message.data.buffer, message.data.byteOffset);
 
-    let pcm16 = new Int16Array(message.length / 2);
+    let pcm16 = new Int16Array(message.data.length / 2);
     let pcmfloat = new Float32Array(pcm16.length);
     for (let i = 0; i < pcm16.length; i++) {
       // Read bytes as unsigned little endian pcm16 data
@@ -84,7 +111,7 @@ export class VOIPWorkletProcessorPCM extends VOIPWorkletProcessor {
     }
     */
 
-    //console.log('uint8: ' + message.length + ' entries, ' + message.join(' '));
+    //console.log('uint8: ' + message.data.length + ' entries, ' + message.data.join(' '));
     //console.log('pcm16: ' + pcm16.length + ' entries, ' + pcm16.join(' '));
     //console.log('pcmfloat: ' + pcmfloat.length + ', ' + pcmfloat.join(' '));
 
@@ -100,8 +127,8 @@ export class VOIPWorkletProcessorPCM extends VOIPWorkletProcessor {
 };
 export class VOIPWorkletProcessorZlib extends VOIPWorkletProcessor {
   handleMessage(message) {
-    var bytes = window.pako.inflate(message, {to: 'arraybuffer'});
-    console.log('got zlib data', message, bytes);
+    var bytes = window.pako.inflate(message.data, {to: 'arraybuffer'});
+    console.log('got zlib data', message.data, bytes);
   }
 };
 registerProcessor('voip-worklet-processor', VOIPWorkletProcessor);

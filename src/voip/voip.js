@@ -6,6 +6,8 @@ export class VOIP extends EventTarget {
     super();
     console.log('init voip', this);
 
+    this.nodelist = new SharedWorker('src/hifi/nodelist-worker.js');
+
     this.context = new AudioContext();
     this.context.audioWorklet.addModule('src/voip/voip-worklet-processor.js').then(() => {
       this.worklet = new VOIPWorkletNode(this.context, 'voip-worklet-processor-pcm');
@@ -14,6 +16,7 @@ export class VOIP extends EventTarget {
         this.audiosource.connect(this.worklet);
       }
       this.worklet.port.onmessage = (ev) => this.handleMessage(ev);
+      this.worklet.port.postMessage({messageport: this.nodelist.port}, [this.nodelist.port]);
     }).catch((e, v) => {
       console.error('VOIP worklet failed to initialize', e, e.message);
     });
@@ -46,10 +49,6 @@ export class VOIP extends EventTarget {
     }
     this.audiosource = source;
     this.microphoneCapturing = true;
-  }
-  handleMessage(ev) {
-    //console.log('got a message', ev);
-    this.dispatchEvent(new CustomEvent('voipdata', { detail: ev.data.buffer }));
   }
   handleKeyDown(ev) {
     // FIXME - chrome seems to be firing in the way I'd expect from keypress, with keyrepeat. We can work with this, but it's weird behavior...
