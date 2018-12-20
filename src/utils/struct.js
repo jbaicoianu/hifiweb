@@ -214,20 +214,20 @@ export class Int32BE_t extends ByteRange_t {
 export class Uint64_t extends ByteRange_t {
   constructor(value) {
     super(8);
-    this._value = (typeof BigInt == 'undefined' ? 0 : 0n);
+    this._value = (typeof BigInt == 'undefined' ? 0 : BigInt(0));
   }
   write(data, offset, value) {
     let bigint = (typeof value == 'bigint');
     let parts = (bigint ?
       [
-        value >> 56n & 0xffn,
-        value >> 48n & 0xffn,
-        value >> 40n & 0xffn,
-        value >> 32n & 0xffn,
-        value >> 24n & 0xffn,
-        value >> 16n & 0xffn,
-        value >> 8n  & 0xffn,
-        value        & 0xffn
+        value >> BigInt(56) & BigInt(0xff),
+        value >> BigInt(48) & BigInt(0xff),
+        value >> BigInt(40) & BigInt(0xff),
+        value >> BigInt(32) & BigInt(0xff),
+        value >> BigInt(24) & BigInt(0xff),
+        value >> BigInt(16) & BigInt(0xff),
+        value >> BigInt(8)  & BigInt(0xff),
+        value        & BigInt(0xff)
       ] : [
         value >> 56 & 0xff,
         value >> 48 & 0xff,
@@ -254,13 +254,13 @@ export class Uint64_t extends ByteRange_t {
       parts[i] = data.getUint8(offset + i);
     }
     return BigInt(parts[0]) |
-           BigInt(parts[1]) << 8n |
-           BigInt(parts[2]) << 16n |
-           BigInt(parts[3]) << 24n |
-           BigInt(parts[4]) << 32n |
-           BigInt(parts[5]) << 40n |
-           BigInt(parts[6]) << 48n |
-           BigInt(parts[7]) << 56n;
+           BigInt(parts[1]) << BigInt(8) |
+           BigInt(parts[2]) << BigInt(16) |
+           BigInt(parts[3]) << BigInt(24) |
+           BigInt(parts[4]) << BigInt(32) |
+           BigInt(parts[5]) << BigInt(40) |
+           BigInt(parts[6]) << BigInt(48) |
+           BigInt(parts[7]) << BigInt(56);
   }
 };
 export class Int64_t extends Uint64_t {
@@ -278,7 +278,7 @@ export class Uint128_t extends ByteRange_t {
         part3 = BigInt(data.getUint32(offset + 8)),
         part4 = BigInt(data.getUint32(offset + 12));
 
-    return part1 << 96n | part2 << 64n | part3 << 32n | part4;
+    return part1 << BigInt(96) | part2 << BigInt(64) | part3 << BigInt(32) | part4;
   }
 };
 export class Int128_t extends ByteRange_t {
@@ -294,7 +294,7 @@ export class Int128_t extends ByteRange_t {
         part3 = BigInt(data.getInt32(offset + 8)),
         part4 = BigInt(data.getInt32(offset + 12));
 
-    return part1 << 96n | part2 << 64n | part3 << 32n | part4;
+    return part1 << BigInt(96) | part2 << BigInt(64) | part3 << BigInt(32) | part4;
   }
 };
 export class Hex128_t extends ByteRange_t {
