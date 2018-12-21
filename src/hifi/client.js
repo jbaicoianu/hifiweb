@@ -32,8 +32,6 @@ class HifiClient extends EventTarget {
     this.avatar = null;
 
     this.voip = new VOIP();
-    this.voip.addEventListener('voipdata', (ev) => this.handleVOIPData(ev));
-    this.audiobuffer = [];
 
     this.connectToRelay();
   }
@@ -46,7 +44,7 @@ class HifiClient extends EventTarget {
     this.remoteCandidates = [];
     this.connected = false;
     this.signalserver = new WebSocket(this.relayserver);
-    this.signalserver.addEventListener('close', (ev) => { this.connected = false; this.stopIcePingTimer(); this.stopNegotiateAudioFormatTimer(); this.stopSilentAudioTimer();});
+    this.signalserver.addEventListener('close', (ev) => { this.connected = false; this.stopIcePingTimer(); this.stopNegotiateAudioFormatTimer(); this.stopAudioTimer();});
     this.signalserver.addEventListener('error', (ev) => { this.connected = false; console.log('error!  reconnecting in 1sec...'); setTimeout(() => this.connectToRelay(), 1000); });
     this.signalserver.addEventListener('message', (ev) => { this.handleSignalMessage(ev); });
   }
@@ -103,9 +101,9 @@ class HifiClient extends EventTarget {
             urls: [
               "stun:stun.l.google.com:19302",
               "stun:stun1.l.google.com:19302",
-              "stun:stun2.l.google.com:19302",
-              "stun:stun3.l.google.com:19302",
-              "stun:stun4.l.google.com:19302"
+              //"stun:stun2.l.google.com:19302",
+              //"stun:stun3.l.google.com:19302",
+              //"stun:stun4.l.google.com:19302"
             ]}]}, this.webrtcoptions);
         console.log('Created peer connection', this.peerconnection);
 
@@ -308,10 +306,10 @@ console.log('start avatar updates', this.sessionUUID);
       this.negotiateAudioFormatTimer = false;
     }
   }
-  stopSilentAudioTimer() {
-    if (this.silentAudioTimer) {
-      clearTimeout(this.silentAudioTimer);
-      this.silentAudioTimer = false;
+  stopAudioTimer() {
+    if (this.audioTimer) {
+      clearTimeout(this.audioTimer);
+      this.audioTimer = false;
     }
   }
   handleIcePing(packet) {
@@ -392,14 +390,14 @@ console.log('got avatar kill', packet);
     this.stopNegotiateAudioFormatTimer();
     this.audioSequence = 0;
 console.log('got selected audio format', packet);
-    this.startSilentAudioTimer();
+    this.startAudioTimer();
   }
-  startSilentAudioTimer() {
-    if (!this.silentAudioTimer) {
+  startAudioTimer() {
+    if (!this.audioTimer) {
       this.nodes.audio.addPacketHandler('SilentAudioFrame', (packet) => this.handleSilentAudio(packet));
       this.nodes.audio.addPacketHandler('MixedAudio', (packet) => this.handleMixedAudio(packet));
 
-      this.silentAudioTimer = setInterval(() => this.sendAudioPacket(), 10);
+      this.audioTimer = setInterval(() => this.sendAudioPacket(), 20);
     }
   }
   handleSilentAudio(packet) {
@@ -424,33 +422,21 @@ console.log('got selected audio format', packet);
   sendAudioPacket() {
     //console.log('silent audio');
     let pack;
-    if (this.audiobuffer.length > 0) {
-      while (this.audiobuffer.length > 0) {
-        pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
-        pack.payload.channelFlag = 0;
-        pack.payload.audioData = this.audiobuffer.shift();
-        pack.payload.sequence = this.audioSequence++;
-        pack.payload.codec = '';
-        pack.payload.position = this.avatar.position;
-        pack.payload.orientation = this.avatar.orientation;
-        pack.payload.boundingBoxCorner = this.avatar.position;
-        pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
-        this.nodes.audio.sendPacket(pack);
-      }
+    if (this.voip.hasQueuedInput()) {
+      pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
+      pack.payload.channelFlag = 0;
+      pack.payload.audioData = this.voip.getQueuedInput();
     } else {
       pack = this.nodes.audio.createPacket('SilentAudioFrame');
-      pack.payload.samples = 480;
-      pack.payload.sequence = this.audioSequence++;
-      pack.payload.codec = '';
-      pack.payload.position = this.avatar.position;
-      pack.payload.orientation = this.avatar.orientation;
-      pack.payload.boundingBoxCorner = this.avatar.position;
-      pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
-      this.nodes.audio.sendPacket(pack);
+      pack.payload.samples = 240;
     }
-  }
-  handleVOIPData(ev) {
-    this.audiobuffer.push(ev.detail);
+    pack.payload.sequence = this.audioSequence++;
+    pack.payload.codec = '';
+    pack.payload.position = this.avatar.position;
+    pack.payload.orientation = this.avatar.orientation;
+    pack.payload.boundingBoxCorner = this.avatar.position;
+    pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
+    this.nodes.audio.sendPacket(pack);
   }
 };
 
