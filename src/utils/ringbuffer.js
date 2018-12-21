@@ -1,18 +1,20 @@
 export class RingBuffer {
-  constructor(size=65535) {
+  constructor(size=65535, type=Float32Array) {
     this.size = size;
-    this.buffer = new Float32Array(size);
+    this.buffer = new type(size);
     this.readoffset = 0;
     this.writeoffset = 0;
   }
   add(data) {
+    let juststarted = true;
     for (let i = 0; i < data.length; i++) {
       let offset = (this.writeoffset + i) % this.size;
-      if (offset == this.readoffset) {
+      if (offset == this.readoffset && !juststarted) {
         console.warn('Buffer overrun!', this);
       } else {
         this.buffer[offset] = data[i];
       }
+      juststarted = false;
     }
     this.writeoffset = (this.writeoffset + data.length) % this.size;
   }
