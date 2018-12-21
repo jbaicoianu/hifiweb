@@ -8,7 +8,6 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
     this.buffer = new RingBuffer();
     this.inputbuffer = new RingBuffer();
     this.sampleRate = 24000;
-    this.inputChunkSize = 240;
     this.port.onmessage = (event) => this.handleMessage(event.data);
     console.log('Initialized VOIP worklet');
   }
@@ -32,76 +31,60 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
     }
 
     // Capture microphone input, and send it to the main thread when we've queued more than a specified chunk size
-    var resampler = new Resampler(48000, this.sampleRate, 1, inputs[0][0]);
-    resampler.resampler(inputs[0][0].length);
-    this.inputbuffer.add(resampler.outputBuffer);
+    if (inputs[0][0].length > 0) {
+      var resampler = new Resampler(48000, this.sampleRate, 1, inputs[0][0]);
+      resampler.resampler(inputs[0][0].length);
 
-    let bufferlength = this.inputbuffer.length();
-    if (bufferlength >= this.inputChunkSize) {
-      let chunk = new Float32Array(this.inputChunkSize);
-      let inbuffer = new Int16Array(this.inputChunkSize);
-
-      this.inputbuffer.read(chunk, this.inputChunkSize);
-
-      let idx =  0;
-      for (let i = 0; i < chunk.length; i++) {
-        inbuffer[i] = (chunk[i]) * 32768;
-      }
-
-      // Send encoded audio stream data back to the main thread
       this.port.postMessage({
         type: 'micdata',
-        buffer: inbuffer
+        buffer: this.encode(resampler.outputBuffer)
       });
+
     }
 
     return true;
   }
+  encode(input) {
+    console.warn('VOIPWorkletProcessor called encode() on base class');
+  }
+  decode(output) {
+    console.warn('VOIPWorkletProcessor called decode() on base class');
+  }
   handleMessage(message) {
-    console.warn('VOIPWorkletProcessor called handleMessage() on base class');
+    this.buffer.add(this.decode(message));
   }
 };
 export class VOIPWorkletProcessorPCM extends VOIPWorkletProcessor {
-  handleMessage(message) {
+  encode(input) {
+    let encoded = new Int16Array(input.length);
+    for (let i = 0; i < input.length; i++) {
+      encoded[i] = (input[i]) * 32768;
+    }
+    return encoded;
+  }
+  decode(output) {
     //console.log('worklet got data' + ' ' + message.buffer.byteLength + ', ' + message.buffer.byteOffset);
     // FIXME - it seems the data we're getting is a bit longer than the 960 bytes we expect.  Do we have a byte offset issue?
-    let bufview = new DataView(message.buffer, message.byteOffset);
+    let bufview = new DataView(output.buffer, output.byteOffset);
 
-    let pcm16 = new Int16Array(message.length / 2);
+    let pcm16 = new Int16Array(output.length / 2);
     let pcmfloat = new Float32Array(pcm16.length);
     for (let i = 0; i < pcm16.length; i++) {
-      // Read bytes as unsigned little endian pcm16 data
+      // read bytes as unsigned little endian pcm16 data
       pcm16[i] = bufview.getInt16(i * 2, true);
-      // Convert unsigned pcm16 data to float range from -1..1
+      // convert unsigned pcm16 data to float range from -1..1
       pcmfloat[i] = (pcm16[i] / 32768);
     }
 
-    /*
-    // Test data: stereo interleaved sine wave
-    for (let i = 0; i < pcm16.length - 1; i+=2) {
-      pcmfloat[i+0] = Math.sin(i/pcm16.length * 2.0 * 3.14159 * 2.0);
-      pcmfloat[i+1] = Math.sin(i/pcm16.length * 2.0 * 3.14159 * 2.0);
-    }
-    */
-
-    //console.log('uint8: ' + message.length + ' entries, ' + message.join(' '));
-    //console.log('pcm16: ' + pcm16.length + ' entries, ' + pcm16.join(' '));
-    //console.log('pcmfloat: ' + pcmfloat.length + ', ' + pcmfloat.join(' '));
-
-    // Use Resampler class to resample to different rates, if needed
-    // I expected the data to be sent as 24000 Hz, but it seems to be 48,000, or I'm handling channels wrong
-
-    //var resampler = new Resampler(48000, this.sampleRate, 1, pcmfloat);
-    //resampler.resampler(pcmfloat.length);
-    //var newbuf = new Uint16Array(resampler.outputBuffer.length);
-
-    this.buffer.add(pcmfloat);
+    return pcmfloat;
   }
 };
 export class VOIPWorkletProcessorZlib extends VOIPWorkletProcessor {
-  handleMessage(message) {
+  encode(input) {
     var bytes = window.pako.inflate(message, {to: 'arraybuffer'});
     console.log('got zlib data', message, bytes);
+  }
+  decode(output) {
   }
 };
 registerProcessor('voip-worklet-processor', VOIPWorkletProcessor);
