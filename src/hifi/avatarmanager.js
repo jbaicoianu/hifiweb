@@ -62,7 +62,7 @@ export class HifiAvatarManager extends EventTarget {
     // https://github.com/highfidelity/hifi/blob/2eb801bdc69eb4131948c7ed9c5446eb8122a8eb/libraries/avatars/src/AvatarHashMap.cpp#L287-L328
     // TODO - AvatarIdentity packets can apparently contain multiple identities, for now we just deal with the first one
     let avatarIdentity = message;
-console.log('avatar identity!', message, this);
+//console.log('avatar identity!', message, this);
     let identityUUID = avatarIdentity.avatarSessionUUID;
     if (!identityUUID) {
       console.warn('Refusing to process identity packet for null avatar ID', message);
@@ -76,10 +76,10 @@ console.log('avatar identity!', message, this);
       avatar.processAvatarIdentity(avatarIdentity);
     }
   }
-  newOrExistingAvatar(sessionUUID, sendingNode) {
+  newOrExistingAvatar(sessionUUID, sendingNode, selfAvatar) {
     let avatar = this.avatars[sessionUUID];
     if (!avatar) {
-      avatar = new HifiAvatar(sessionUUID);
+      avatar = new HifiAvatar(sessionUUID, selfAvatar);
       this.avatars[sessionUUID] = avatar;
     }
     return avatar;
@@ -87,9 +87,17 @@ console.log('avatar identity!', message, this);
   processAvatarDataPacket(message, sendingNode) {
     message.updates.forEach(avatarUpdate => this.parseAvatarUpdate(avatarUpdate, sendingNode));
   }
+  processAvatarTraitsPacket(message, sendingNode) {
+console.log('process avatar traits', message);
+    message.traits.forEach(trait => this.parseAvatarTrait(trait, sendingNode));
+  }
   parseAvatarUpdate(avatarUpdate, sendingNode) {
     let avatar = this.newOrExistingAvatar(avatarUpdate.uuid);
     avatar.processAvatarData(avatarUpdate.avatardata, sendingNode);
+  }
+  parseAvatarTrait(trait, sendingNode) {
+    let avatar = this.newOrExistingAvatar(trait.uuid);
+    avatar.processAvatarTrait(trait.trait, sendingNode);
   }
   processKillAvatarPacket(killAvatar, sendingNode) {
     let avatar = this.newOrExistingAvatar(killAvatar.uuid);
