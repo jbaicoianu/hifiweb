@@ -10,9 +10,11 @@ export class PacketReceiver {
   }
   handlePacket(packet) {
     let type = packet.packetType;
+    let num = 0;
     if (this.listeners[type]) {
-      this.listeners[type].forEach(l => l(packet.payload));
+      this.listeners[type].forEach(l => { l(packet.payload); num++; });
     }
+    return num;
   }
 };
 
