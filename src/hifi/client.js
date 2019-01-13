@@ -214,16 +214,18 @@ console.log('negotiate audio!', pack, pack.hmac);
     // FIXME - need to register with Entity server?
 
 console.log('start avatar updates', this.sessionUUID);
-    this.avatar = this.avatars.newOrExistingAvatar(this.sessionUUID);
+    this.avatar = this.avatars.newOrExistingAvatar(this.sessionUUID, null, true);
     let displayname = document.getElementById('displaynameinput');
     if (displayname && displayname.value) {
       this.avatar.setDisplayName(displayname.value);
     }
     this.avatar.sendIdentityPacket(this.nodes.avatar);
+    this.avatar.sendTraitPacket(this.nodes.avatar);
 
     setInterval(() => this.sendAvatarUpdate(), 20);
 
     this.nodes.avatar.addPacketHandler('BulkAvatarData', (packet) => this.handleBulkAvatarData(packet));
+    this.nodes.avatar.addPacketHandler('BulkAvatarTraits', (packet) => this.handleBulkAvatarTraits(packet));
     this.nodes.avatar.addPacketHandler('AvatarIdentity', (packet) => this.handleAvatarIdentity(packet));
     this.nodes.avatar.addPacketHandler('KillAvatar', (packet) => this.handleKillAvatar(packet));
   }
@@ -382,6 +384,10 @@ console.log('start avatar updates', this.sessionUUID);
 //console.log('got bulk avatar data', packet);
     this.avatars.processAvatarDataPacket(packet);
   }
+  handleBulkAvatarTraits(packet) {
+console.log('got avatar traits', packet);
+    this.avatars.processAvatarTraitsPacket(packet);
+  }
   handleKillAvatar(packet) {
 console.log('got avatar kill', packet);
     this.avatars.processKillAvatarPacket(packet);
@@ -396,8 +402,9 @@ console.log('got selected audio format', packet);
     if (!this.audioTimer) {
       this.nodes.audio.addPacketHandler('SilentAudioFrame', (packet) => this.handleSilentAudio(packet));
       this.nodes.audio.addPacketHandler('MixedAudio', (packet) => this.handleMixedAudio(packet));
+      this.nodes.audio.addPacketHandler('AudioEnvironment', (packet) => this.handleAudioEnvironment(packet));
 
-      this.audioTimer = setInterval(() => this.sendAudioPacket(), 20);
+      this.audioTimer = setInterval(() => this.sendAudioPacket(), 10);
     }
   }
   handleSilentAudio(packet) {
@@ -418,6 +425,9 @@ console.log('got selected audio format', packet);
     this.nodes.audio.sendPacket(pack);*/
 
     this.voip.processVOIPData(packet.audioData);
+  }
+  handleAudioEnvironment(packet) {
+    //console.log('environment audio', packet);
   }
   sendAudioPacket() {
     //console.log('silent audio');
