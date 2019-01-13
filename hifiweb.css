@@ -133,3 +133,23 @@ hifidebug-packet.sending:hover {
 hifidebug-packet struct-view {
   font-size: .8em;
 }
+voip-controls {
+  display: block;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+}
+voip-indicator {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background: red;
+  border: 1px solid black;
+  border-radius: 10px;
+  margin-right: .5em;
+}
+voip-indicator[active] {
+  background: green;
+}
+
