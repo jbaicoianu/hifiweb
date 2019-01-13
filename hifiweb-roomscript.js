@@ -25,16 +25,18 @@ room.registerElement('hificlient', {
 
   updateAvatar() {
     if (this.hifi) {
-      let pos = player.pos,
+      let pos = V(player.pos),
           orientation = player.orientation._target,
           view_dir = player.view_dir,
           avatar = this.hifi.avatar;
   
+        pos.y += .8;
       if (avatar) {
         if (pos.distanceTo(avatar.position) > .001) {
           avatar.setPosition(pos);
+          avatar.setOrientation(orientation);
         }
-        if (!orientation.equals(avatar.orientation)) {
+        if (orientation.angleTo(avatar.orientation) > Math.PI / 360) {
           avatar.setOrientation(orientation);
         }
         if (!view_dir.equals(avatar.view_dir)) {
