@@ -18,7 +18,7 @@ export class Struct {
     let size = 0;
     if (!value) value = this;
     for (let k in attrs) {
-      size += attrs[k].size(value[k]);
+      size += attrs[k].size(arrayget(value, k));
     }
     return size;
   }
