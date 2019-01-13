@@ -1,4 +1,5 @@
 import { VOIPWorkletNode } from './voip-worklet-node.js';
+import { VoipControls } from './voip-controls.js';
 import { RingBuffer } from '../utils/ringbuffer.js';
 //import { VOIPWorkletProcessor } from './voip-worklet-processor.js';
 
@@ -22,6 +23,10 @@ export class VOIP extends EventTarget {
       });
       document.body.addEventListener('keydown', (ev) => this.handleKeyDown(ev));
       document.body.addEventListener('keyup', (ev) => this.handleKeyUp(ev));
+
+      this.controls = document.createElement('voip-controls');
+      document.body.appendChild(this.controls);
+
     } else {
       console.log('no worklet support, disabling VOIP');
     }
@@ -31,7 +36,8 @@ export class VOIP extends EventTarget {
   }
   startMicrophoneCapture() {
     console.log('start microphone capture');
-    navigator.mediaDevices.getUserMedia({audio: {echoCancellation: true, sampleRate: 24000}, video: false}).then((devices) => this.handleUserMedia(devices));
+    this.starting = true;
+    navigator.mediaDevices.getUserMedia({audio: {echoCancellation: false, sampleRate: 24000}, video: false}).then((devices) => this.handleUserMedia(devices));
   }
   stopMicrophoneCapture() {
     if (this.audiosource && this.microphoneCapturing) {
@@ -42,7 +48,9 @@ export class VOIP extends EventTarget {
       }
       this.audiosource = false;
       this.microphoneCapturing = false;
+      this.controls.indicator.stop();
     }
+    this.starting = false;
   }
   hasQueuedInput() {
     return this.inputbuffer.length() > 0;
@@ -54,25 +62,31 @@ export class VOIP extends EventTarget {
     return data;
   }
   handleUserMedia(stream) {
-    console.log('got microphone media stream', stream);
-    let source = this.context.createMediaStreamSource(stream);
-    if (this.worklet) {
-      source.connect(this.worklet);
+    if (this.starting) {
+      console.log('got microphone media stream', stream);
+      let source = this.context.createMediaStreamSource(stream);
+      if (this.worklet) {
+        source.connect(this.worklet);
+console.log(this.controls.waveform);
+        this.controls.waveform.attach(source);
+      }
+      this.audiosource = source;
+      this.microphoneCapturing = true;
+      this.controls.indicator.start();
+      this.starting = false;
     }
-    this.audiosource = source;
-    this.microphoneCapturing = true;
   }
   handleMessage(ev) {
     this.inputbuffer.add(ev.data.buffer);
   }
   handleKeyDown(ev) {
     // FIXME - chrome seems to be firing in the way I'd expect from keypress, with keyrepeat. We can work with this, but it's weird behavior...
-    if (ev.key == 'v' && !this.microphoneCapturing ) {
+    if ((ev.key == 'v' || ev.key == 'V') && !this.microphoneCapturing ) {
       this.startMicrophoneCapture();
     }
   }
   handleKeyUp(ev) {
-    if (ev.key == 'v') {
+    if (ev.key == 'v' || ev.key == 'V') {
       this.stopMicrophoneCapture();
     }
   }

@@ -56,15 +56,16 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
 };
 export class VOIPWorkletProcessorPCM extends VOIPWorkletProcessor {
   encode(input) {
+    // Encode into an array of Int16_t values representing PCM data
     let encoded = new Int16Array(input.length);
     for (let i = 0; i < input.length; i++) {
-      encoded[i] = (input[i]) * 32768;
+      encoded[i] = (Math.max(-.9, Math.min(.9, input[i]))) * 32768;
     }
     return encoded;
   }
   decode(output) {
+    // Encode into an array of Int16_t values representing PCM data
     //console.log('worklet got data' + ' ' + message.buffer.byteLength + ', ' + message.buffer.byteOffset);
-    // FIXME - it seems the data we're getting is a bit longer than the 960 bytes we expect.  Do we have a byte offset issue?
     let bufview = new DataView(output.buffer, output.byteOffset);
 
     let pcm16 = new Int16Array(output.length / 2);
