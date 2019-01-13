@@ -22,7 +22,7 @@
         <div>Domain:</div>
         <div><input id="domaininput" name="domain" value="hifi://janusvr"></div>
         <div>Display Name:</div>
-        <div><input id="displaynameinput" name="displayname" value="unknown"></div>
+        <div><input id="displaynameinput" name="displayname" value="HifiWebUser"></div>
         <p><button onclick="elation.janusweb.init()">Log in</button></p>
       </div>
     </div>
@@ -32,11 +32,35 @@
     <assetimage id="hifi_skybox" src="https://i.imgur.com/tWJTOsq.png" />
     <assetimage id="hifi_skybox_top" src="https://i.imgur.com/n9aqQNI.png" />
     <assetimage id="hifi_skybox_bottom" src="https://i.imgur.com/efuThhc.png" />
+    <assetobject id="archive" src="http://assets.metacade.com/internetarchive/internetarchive.gltf" />
+    <assetobject id="archive-collider" src="http://assets.metacade.com/archive/models/library/library-collider.obj" />
+
+    <assetobject id="schoolgym" src="https://vesta.janusvr.com/files/nazrin-templates/gym/gym.obj" />
+    <assetobject id="schoolgym-collider" src="https://vesta.janusvr.com/files/nazrin-templates/gym/gym_collision.obj" />
+
+<!--
+    <assetobject id="matthew" src="http://hifi-content.s3.amazonaws.com/Avatars/production/matthew/shirt/matthew/matthew.fbx" />
+    <assetobject id="artemis" src="http://mpassets.highfidelity.com/e76946cc-c272-4adf-9bb6-02cde0a4b57d-v1/DefaultStylizedFemale.fbx" />
+    <assetobject id="horseman" src="http://mpassets.highfidelity.com/5e9338ee-199f-4b8c-9525-13c2cf72406b-v1/horseman/horseman.fbx" />
+    <assetobject id="fmotrac" src="http://mpassets.highfidelity.com/0c2c264b-2fd2-46a4-bf80-de681881f66b-v1/F_MotRac/F_MotRac.fbx" />
+    <assetobject id="opticalinterpreter" src="http://mpassets.highfidelity.com/469c8b66-e3c2-47fb-9820-e306b1dd15c4-v1/optical_interpreter/optical_interpreter.fbx" />
+    <assetobject id="catmechsuit" src="http://mpassets.highfidelity.com/efa82bfc-0f86-4024-bdce-69454ee67eaa-v1/CatBlack_MechSuit/Cat_MechSuit.fbx" />
+    <assetobject id="catmechdress" src="http://mpassets.highfidelity.com/5013a7b2-ec93-4aa1-9637-fea9e9ba12df-v1/CatOTab_MechDress/CatOTab_MechDress.fbx" />
+    <assetobject id="james" src="http://assets.metacade.com/james/james-avatar-highfidelity/james-avatar-improved/james-avatar-improved.fbx" />
+    <assetobject id="mannequin" src="http://mpassets.highfidelity.com/ad348528-de38-420c-82bb-054cb22163f5-v1/mannequin.fbx" />
+    <assetobject id="llmale2" src="http://mpassets.highfidelity.com/28569047-6f1a-4100-af67-8054ec397cc3-v1/LLMale2/LLMale2.fbx" />
+    <assetobject id="robimo" src="http://mpassets.highfidelity.com/6c5d04a5-7637-4c01-9424-03db55e9cb97-v1/Robimo_black.fbx" />
+-->
+
     <assetscript src="https://baicoianu.com/~bai/assets/assets.metacade.com/internetarchive/scripts/objectpool.js" />
     <assetscript src="hifiweb-roomscript.js" />
   </assets>
-  <room skybox_left_id="hifi_skybox_bottom" skybox_right_id="hifi_skybox_bottom" skybox_up_id="hifi_skybox_bottom" skybox_down_id="hifi_skybox_bottom" skybox_front_id="hifi_skybox_bottom" skybox_back_id="hifi_skybox_bottom" zdir="0 0 -1" walk_speed=".6" >
+  <room skybox_left_id="hifi_skybox_bottom" skybox_right_id="hifi_skybox_bottom" skybox_up_id="hifi_skybox_bottom" skybox_down_id="hifi_skybox_bottom" skybox_front_id="hifi_skybox_bottom" skybox_back_id="hifi_skybox_bottom" zdir="0 0 -1" walk_speed=".6" ambient=".1 .1 .1">
     <object id="sphere" image_id="hifi_skybox" cull_face="front" pos="0 0 0" scale="1000 1000 1000" lighting="false" />
+    <object id="schoolgym" xcollision_id="schoolgym-collider" pos="0 0 15.8" rotation="0 180 0" />
+    <light light_shadow="true" pos=".1 4 -10" light_range="30" light_intensity="8" />
+
+    <object id="robimo" pos="0 0 5" scale=".01 .01 .01" lighting="true" />
 
     <hificlient domain="hifi://janusvr" />
   </room>
