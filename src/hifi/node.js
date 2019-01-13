@@ -92,7 +92,6 @@ export class HifiNode extends Connection {
       if (packet.isReliable()) {
         this.processReceivedSequenceNumber(packet.sequenceNumber);
       }
-
       /*
       if (packet.isPartOfMessage()) {
         this.queueReceivedMessagePacket(packet);
@@ -179,7 +178,9 @@ console.log('send reliable!');
       if (this.authhash) {
         packet.verify(this.authhash)
       }
-      this.packetreceiver.handlePacket(packet);
+      if (this.packetreceiver.handlePacket(packet) == 0) {
+        console.warn('Unhandled packet', packet.typeName, packet);
+      }
     }
   }
   startPingTimer() {
