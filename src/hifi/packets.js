@@ -38,7 +38,7 @@ const PacketType = new Enum([
   'ICEServerPeerInformation',
   'ICEServerQuery',
   'OctreeStats',
-  'UNUSED_PACKET_TYPE_1',
+  'SetAvatarTraits',
   'AvatarIdentityRequest',
   'AssignmentClientStatus',
   'NoisyMute',
@@ -115,6 +115,7 @@ const PacketType = new Enum([
   'EntityQueryInitialResultsComplete',
   'BulkAvatarTraits',
   'AudioSoloRequest',
+  //'BulkAvatarTraitsAck',
 
   'ProxiedICEPing',
   'ProxiedICEPingReply',
@@ -988,6 +989,58 @@ class BulkAvatarDataUpdate extends struct.define({
     this.byteSize = this.avatardata.size() + 16;
   }
 };
+export const AvatarTraits = new Enum([
+  'SkeletonModelURL',
+  'FirstInstancedTrait',
+  'AvatarEntity',
+  'TotalTraitTypes'
+]);
+class SetAvatarTraits extends struct.define({
+  seq: new struct.Uint16_t,
+  traits: new struct.StructList_t
+}) { };
+class AvatarTrait extends struct.define({
+  traitType: new struct.Uint8_t,
+  traitVersion: new struct.Uint32_t,
+  traitSize: new struct.Uint16_t,
+  traitData: new struct.ByteArray_t
+}) { };
+class BulkAvatarTraits extends struct.define({
+  traits: new struct.StructList_t
+}) {
+  read(data, offset) {
+    if (!offset) offset = 0;
+console.log('avatar trait data', data, offset);
+    let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
+    let idx = 0;
+    this.traits = [];
+    while (idx < buf.byteLength) {
+      let trait = new BulkAvatarTrait();
+      trait.read(buf, idx);
+      this.traits.push(trait);
+      //console.log("avatar",i++,update);
+      idx += trait.size();
+    }
+    
+  }
+};
+class BulkAvatarTrait extends struct.define({
+  uuid: new struct.UUID_t,
+  trait: new struct.Struct_t,
+}) {
+  size() {
+    return this.byteSize;
+  }
+  read(data, offset) {
+    super.read(data, offset);
+    this.trait = new AvatarTrait();
+    this.trait.read(data, offset + 16);
+    this.byteSize = this.trait.size() + 16;
+  }
+};
+class BulkAvatarTraitsAck extends struct.define({
+  seq: new struct.Uint16_t,
+}) { };
 class KillAvatar extends struct.define({
   uuid: new struct.UUID_t,
   reason: new struct.Uint8_t,
@@ -1031,6 +1084,24 @@ class MicrophoneAudioNoEcho extends struct.define({
 }) {
   static version() { return 23; }
 };
+class AudioEnvironment extends struct.define({
+  bitset: new struct.Uint8_t,
+  reverb: new struct.Struct_t
+}) {
+  static version() { return 23; }
+  read(data, offset) {
+    super.read(data, offset);
+    if (this.bitset & 1) {
+      this.reverb = new AudioEnvironmentReverb();
+      this.reverb.read(data, offset + 1);
+    }
+  }
+};
+class AudioEnvironmentReverb extends struct.define({
+  reverbTime: new struct.Float_t,
+  wetLevel: new struct.Float_t
+}) {
+};
 
 var PacketTypeDefs = {
   NLPacket: NLPacket,
@@ -1042,10 +1113,14 @@ var PacketTypeDefs = {
   AvatarIdentity: AvatarIdentity,
   AvatarData: AvatarData,
   BulkAvatarData: BulkAvatarData,
+  BulkAvatarTraits: BulkAvatarTraits,
+  BulkAvatarTraitsAck: BulkAvatarTraitsAck,
+  SetAvatarTraits: SetAvatarTraits,
   KillAvatar: KillAvatar,
   AvatarQuery: AvatarQuery,
   SilentAudioFrame: SilentAudioFrame,
   MixedAudio: MixedAudio,
+  AudioEnvironment: AudioEnvironment,
   MicrophoneAudioNoEcho: MicrophoneAudioNoEcho,
   ICEPing: ICEPing,
   ICEPingReply: ICEPingReply,
@@ -1053,6 +1128,7 @@ var PacketTypeDefs = {
   ProxiedICEPingReply: ProxiedICEPingReply,
   ProxiedDomainListRequest: ProxiedDomainListRequest,
 };
+console.log('packet types:', PacketTypeDefs);
 
 export function versionForPacketType(packetType) {
   let version = DefaultPacketVersion;
@@ -1075,10 +1151,15 @@ export {
   AvatarDataHasFlags,
   AvatarData,
   BulkAvatarData,
+  BulkAvatarTraits,
+  BulkAvatarTraitsAck,
+  SetAvatarTraits,
+  AvatarTrait,
   KillAvatar,
   AvatarQuery,
   SilentAudioFrame,
   MixedAudio,
+  AudioEnvironment,
   MicrophoneAudioNoEcho,
   ICEPing,
   ICEPingReply,
