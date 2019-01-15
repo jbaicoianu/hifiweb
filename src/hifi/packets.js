@@ -996,13 +996,12 @@ export const AvatarTraits = new Enum([
   'TotalTraitTypes'
 ]);
 class SetAvatarTraits extends struct.define({
-  seq: new struct.Uint16_t,
+  traitVersion: new struct.Int32_t,
   traits: new struct.StructList_t
 }) { };
 class AvatarTrait extends struct.define({
-  traitType: new struct.Uint8_t,
-  traitVersion: new struct.Uint32_t,
-  traitSize: new struct.Uint16_t,
+  traitType: new struct.Int8_t,
+  traitSize: new struct.Int16_t,
   traitData: new struct.ByteArray_t
 }) { };
 class BulkAvatarTraits extends struct.define({
@@ -1010,7 +1009,6 @@ class BulkAvatarTraits extends struct.define({
 }) {
   read(data, offset) {
     if (!offset) offset = 0;
-console.log('avatar trait data', data, offset);
     let buf = (data instanceof DataView ? new DataView(data.buffer, offset + data.byteOffset) : new DataView(data, offset));
     let idx = 0;
     this.traits = [];
@@ -1026,21 +1024,23 @@ console.log('avatar trait data', data, offset);
 };
 class BulkAvatarTrait extends struct.define({
   uuid: new struct.UUID_t,
-  trait: new struct.Struct_t,
+  traitType: new struct.Int8_t,
+  traitVersion: new struct.Int32_t,
+  traitSize: new struct.Int16_t,
+  traitData: new struct.ByteArray_t
 }) {
   size() {
     return this.byteSize;
-  }
-  read(data, offset) {
-    super.read(data, offset);
-    this.trait = new AvatarTrait();
-    this.trait.read(data, offset + 16);
-    this.byteSize = this.trait.size() + 16;
   }
 };
 class BulkAvatarTraitsAck extends struct.define({
   seq: new struct.Uint16_t,
 }) { };
+class AvatarIdentityRequest extends struct.define({
+  uuid: new struct.UUID_t
+}) {
+  static version() { return 22; }
+};
 class KillAvatar extends struct.define({
   uuid: new struct.UUID_t,
   reason: new struct.Uint8_t,
@@ -1116,6 +1116,7 @@ var PacketTypeDefs = {
   BulkAvatarTraits: BulkAvatarTraits,
   BulkAvatarTraitsAck: BulkAvatarTraitsAck,
   SetAvatarTraits: SetAvatarTraits,
+  AvatarIdentityRequest: AvatarIdentityRequest,
   KillAvatar: KillAvatar,
   AvatarQuery: AvatarQuery,
   SilentAudioFrame: SilentAudioFrame,
@@ -1154,6 +1155,7 @@ export {
   BulkAvatarTraits,
   BulkAvatarTraitsAck,
   SetAvatarTraits,
+  AvatarIdentityRequest,
   AvatarTrait,
   KillAvatar,
   AvatarQuery,
