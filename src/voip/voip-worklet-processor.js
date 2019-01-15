@@ -32,12 +32,38 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
 
     // Capture microphone input, and send it to the main thread when we've queued more than a specified chunk size
     if (inputs[0][0].length > 0) {
-      var resampler = new Resampler(48000, this.sampleRate, 1, inputs[0][0]);
-      resampler.resampler(inputs[0][0].length);
+      let buffer = inputs[0][0];
+
+      // DEBUG - generate a pure sine wave tone before resampling
+      /*
+      buffer = new Float32Array(buffer.length);
+      if (!this.sincounter) this.sincounter = 0;
+      for (let i = 0; i < buffer.length; i++) {
+        buffer[i] = Math.sin(this.sincounter++ / 100.0 * Math.PI);
+      }
+      */
+
+      if (this.inputSampleRate != this.sampleRate) {
+        /*
+        if (!this.resampler.inputBufferLength) {
+                this.resampler.inputBufferLength = buffer.length;
+                this.resampler.initialize();
+        }
+        buffer = this.resampler.resampler(buffer);
+        */
+        // FIXME - resampler library introduces scratchiness, use a simple 48000->24000Hz conversion for now
+        // TODO - reuse buffer to eliminate gc
+        let buffer2 = new Float32Array(buffer.length / 2);
+        for (let i = 0; i < buffer2.length; i++) {
+          buffer2[i] = buffer[i * 2];
+        }
+        buffer = buffer2;
+      }
 
       this.port.postMessage({
-        type: 'micdata',
-        buffer: this.encode(resampler.outputBuffer)
+        type: 'voipdata',
+        //buffer: this.encode(resampler.outputBuffer)
+        buffer: this.encode(buffer)
       });
 
     }
@@ -51,7 +77,12 @@ export class VOIPWorkletProcessor extends AudioWorkletProcessor {
     console.warn('VOIPWorkletProcessor called decode() on base class');
   }
   handleMessage(message) {
-    this.buffer.add(this.decode(message));
+    if (message.inputSampleRate) {
+      this.inputSampleRate = message.inputSampleRate;
+      this.resampler = new Resampler(this.inputSampleRate, this.sampleRate, 1);
+    } else {
+      this.buffer.add(this.decode(message));
+    }
   }
 };
 export class VOIPWorkletProcessorPCM extends VOIPWorkletProcessor {
@@ -59,7 +90,7 @@ export class VOIPWorkletProcessorPCM extends VOIPWorkletProcessor {
     // Encode into an array of Int16_t values representing PCM data
     let encoded = new Int16Array(input.length);
     for (let i = 0; i < input.length; i++) {
-      encoded[i] = (Math.max(-.9, Math.min(.9, input[i]))) * 32768;
+      encoded[i] = (Math.max(-.9, Math.min(.9, input[i]))) * 32767;
     }
     return encoded;
   }

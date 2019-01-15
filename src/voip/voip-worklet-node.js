@@ -1,3 +1,5 @@
+import './audioworklet-polyfill.js';
+
 export class VOIPWorkletNode extends AudioWorkletNode {
   constructor(context, processor) {
     super(context, processor);
