@@ -79,7 +79,7 @@ export class HifiAvatarManager extends EventTarget {
   newOrExistingAvatar(sessionUUID, sendingNode, selfAvatar) {
     let avatar = this.avatars[sessionUUID];
     if (!avatar) {
-      avatar = new HifiAvatar(sessionUUID, selfAvatar);
+      avatar = new HifiAvatar(sessionUUID, selfAvatar, sendingNode);
       this.avatars[sessionUUID] = avatar;
     }
     return avatar;
@@ -88,19 +88,18 @@ export class HifiAvatarManager extends EventTarget {
     message.updates.forEach(avatarUpdate => this.parseAvatarUpdate(avatarUpdate, sendingNode));
   }
   processAvatarTraitsPacket(message, sendingNode) {
-console.log('process avatar traits', message);
     message.traits.forEach(trait => this.parseAvatarTrait(trait, sendingNode));
   }
   parseAvatarUpdate(avatarUpdate, sendingNode) {
-    let avatar = this.newOrExistingAvatar(avatarUpdate.uuid);
+    let avatar = this.newOrExistingAvatar(avatarUpdate.uuid, sendingNode);
     avatar.processAvatarData(avatarUpdate.avatardata, sendingNode);
   }
   parseAvatarTrait(trait, sendingNode) {
-    let avatar = this.newOrExistingAvatar(trait.uuid);
-    avatar.processAvatarTrait(trait.trait, sendingNode);
+    let avatar = this.newOrExistingAvatar(trait.uuid, sendingNode);
+    avatar.processAvatarTrait(trait, sendingNode);
   }
   processKillAvatarPacket(killAvatar, sendingNode) {
-    let avatar = this.newOrExistingAvatar(killAvatar.uuid);
+    let avatar = this.newOrExistingAvatar(killAvatar.uuid, sendingNode);
     avatar.processKillAvatar(killAvatar, sendingNode);
   }
 };
