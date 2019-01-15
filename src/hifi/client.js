@@ -7,7 +7,7 @@ import { VOIP } from '../voip/voip.js';
 import { } from '../structviewer.js';
 
 class HifiClient extends EventTarget {
-  constructor() {
+  constructor(domain='hifi://janusvr', username=null) {
     super();
 
     this.nodes = {};
@@ -214,7 +214,7 @@ console.log('negotiate audio!', pack, pack.hmac);
     // FIXME - need to register with Entity server?
 
 console.log('start avatar updates', this.sessionUUID);
-    this.avatar = this.avatars.newOrExistingAvatar(this.sessionUUID, null, true);
+    this.avatar = this.avatars.newOrExistingAvatar(this.sessionUUID, this.nodes.avatar, true);
     let displayname = document.getElementById('displaynameinput');
     if (displayname && displayname.value) {
       this.avatar.setDisplayName(displayname.value);
@@ -378,11 +378,11 @@ console.log('start avatar updates', this.sessionUUID);
   }
   handleAvatarIdentity(packet) {
 //console.log('got avatar identity', packet);
-    this.avatars.processAvatarIdentityPacket(packet);
+    this.avatars.processAvatarIdentityPacket(packet, this.nodes.avatar);
   }
   handleBulkAvatarData(packet) {
 //console.log('got bulk avatar data', packet);
-    this.avatars.processAvatarDataPacket(packet);
+    this.avatars.processAvatarDataPacket(packet, this.nodes.avatar);
   }
   handleBulkAvatarTraits(packet) {
 console.log('got avatar traits', packet);
@@ -404,7 +404,8 @@ console.log('got selected audio format', packet);
       this.nodes.audio.addPacketHandler('MixedAudio', (packet) => this.handleMixedAudio(packet));
       this.nodes.audio.addPacketHandler('AudioEnvironment', (packet) => this.handleAudioEnvironment(packet));
 
-      this.audioTimer = setInterval(() => this.sendAudioPacket(), 10);
+      // Send audio packets as soon as they're available from the audio worklet
+      this.voip.addEventListener('voipdata', (ev) => this.sendAudioPacket());
     }
   }
   handleSilentAudio(packet) {
@@ -413,7 +414,9 @@ console.log('got selected audio format', packet);
   handleMixedAudio(packet) {
     //console.log('mic data', packet);
 
-    /*let pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
+    // Retransmit code - just send the audio we receive baack out as our mic input, for testing purposes
+    /*
+    let pack = this.nodes.audio.createPacket('MicrophoneAudioNoEcho');
     pack.payload.sequence = this.audioSequence++;
     pack.payload.codec = '';
     pack.payload.channelFlag = 1;
@@ -422,7 +425,8 @@ console.log('got selected audio format', packet);
     pack.payload.boundingBoxCorner = this.avatar.position;
     pack.payload.boundingBoxScale = {x: 0, y: 0, z: 0};
     pack.payload.audioData = packet.audioData;
-    this.nodes.audio.sendPacket(pack);*/
+    this.nodes.audio.sendPacket(pack);
+    */
 
     this.voip.processVOIPData(packet.audioData);
   }
