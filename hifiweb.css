@@ -152,4 +152,11 @@ voip-indicator {
 voip-indicator[active] {
   background: green;
 }
-
+voip-waveform canvas {
+  border: 2px solid #f00;
+  border-radius: 10px;
+  margin-bottom: 1px;
+}
+voip-waveform[active] canvas {
+  border-color: #0f0;
+}
