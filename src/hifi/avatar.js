@@ -1,6 +1,6 @@
 import { AvatarGlobalPosition, AvatarOrientation, AvatarTrait } from './packets.js';
 export class HifiAvatar {
-  constructor(uuid=null, selfavatar=false) {
+  constructor(uuid=null, selfavatar=false, node=null) {
     this.uuid = uuid;
     this.displayName = 'unknown';
     this.position = new THREE.Vector3();
@@ -8,8 +8,10 @@ export class HifiAvatar {
     this.view_dir = new THREE.Quaternion();
     this.clearUpdates();
     this.sequenceId = 0;
-
+    this.avatarTraitSequenceId = 0;
     this.janusobj = room.createObject('object', { rotation: V(0, 180, 0) });
+    this.node = node;
+
     let avataroptions = [
 /*
       'matthew',
@@ -44,6 +46,14 @@ export class HifiAvatar {
       font_size: .08,
       col: '#00b4ef'
     });
+
+    this.receivedAvatarTraits = false;
+    setTimeout(() => {
+      if (!this.receivedAvatarTraits) {
+console.log('get the identity', this.node, this);
+        this.requestAvatarIdentity(this.node);
+      }
+    }, 1000);
   }
   setPosition(pos) {
     this.position.copy(pos);
@@ -104,18 +114,23 @@ export class HifiAvatar {
 
     let trait = new AvatarTrait()
 
-    //let skeletonURL = 'https://highfidelity.com/api/v1/commerce/entity_edition/28569047-6f1a-4100-af67-8054ec397cc3.fst?certificate_id=MEUCIGoOZWOLWUcOoh%2FUXCOMS2aTDg%2Fiz66nd8spKEynGqejAiEA3XtC83fe3rAWhTD79Xm%2FQeOzU6%2Bpxwe74v0W7f9YSwQ%3D'; // mannequin
+    //let skeletonURL = ''; // defalt (mannequin)
+    //let skeletonURL = 'https://highfidelity.com/api/v1/commerce/entity_edition/28569047-6f1a-4100-af67-8054ec397cc3.fst?certificate_id=MEUCIGoOZWOLWUcOoh%2FUXCOMS2aTDg%2Fiz66nd8spKEynGqejAiEA3XtC83fe3rAWhTD79Xm%2FQeOzU6%2Bpxwe74v0W7f9YSwQ%3D'; // llmale2
     let skeletonURL = 'https://highfidelity.com/api/v1/commerce/entity_edition/6c5d04a5-7637-4c01-9424-03db55e9cb97.fst?certificate_id=MEYCIQDOE3NFsmfIsYomEYrVYbZiW2V7s0EyBW7sf6Otc8Xc%2FAIhANbMMfsCd55SICauJp1OW3gqSknO%2BBy2ZDmM67XeZ81a'; // robimo
+    //let skeletonURL = 'https://highfidelity.com/api/v1/commerce/entity_edition/72e083ee-194d-4113-9c61-0591d8257493.fst?certificate_id=MEUCIQDJMei9zcviKrDnLWlUMXgoKw7KvAy4BuDK9Xvm9hko%2FQIgQSsOGGmKQukrFiKOhL7dWLsbNAACGAZjw1EMw4ZBVaY%3D'; // tinyskeleton
+    //let skeletonURL = 'http://mpassets.highfidelity.com/5e9338ee-199f-4b8c-9525-13c2cf72406b-v1/horseman.fst'; // horseman
+    //let skeletonURL = 'http://mpassets.highfidelity.com/5013a7b2-ec93-4aa1-9637-fea9e9ba12df-v1/CatOTab_MechDress.fst'; // catmechdress
+    //let skeletonURL = 'http://mpassets.highfidelity.com/f3fbb9f4-e159-49ed-ac32-03af9056b17e-v1/matthew.fst'; // matthew
+
     let textenc = new TextEncoder();
 
     trait.traitType = 0;
-    trait.traitVersion = 1;
     trait.traitSize = skeletonURL.length;
     trait.traitData = textenc.encode(skeletonURL);
 
+    pack.payload.traitVersion = ++this.avatarTraitSequenceId;
+    pack.payload.traits = [];
     pack.payload.traits.push(trait);
-
-console.log('SEND TRAIT', pack);
 
     node.sendPacket(pack);
   }
@@ -126,7 +141,7 @@ console.log('SEND TRAIT', pack);
     if (this.displayname != identity.sessionDisplayName && identity.sessionDisplayName != null) {
       this.setDisplayName(identity.sessionDisplayName);
     }
-    //console.log('processed identity packet', this.displayName, identity, this);
+    console.log('processed identity packet', this.displayName, identity, this);
   }
   processAvatarData(avatarData) {
     //console.log('yup, got some updates', avatarData, this);
@@ -153,6 +168,7 @@ console.log('here is my trait', trait, this);
         let baseurl = elation.engine.assets.base.prototype.getBaseURL(skeletonURL);
         fetch(elation.engine.assets.corsproxy + skeletonURL).then(d => d.text()).then(t => this.parseFST(t, baseurl));
       }
+      this.receivedAvatarTraits = true;
     }
   }
   parseFST(fst, baseurl='') {
@@ -164,7 +180,7 @@ console.log('here is my trait', trait, this);
         attrs[keyval[0].trim()] = keyval[1].trimStart();
       }
     });
-console.log(fst);
+console.log(fst, attrs);
     if (attrs.name && attrs.filename) {
 console.log('new avatar model', attrs.name, attrs.filename);
       room.loadNewAsset('object', {
@@ -179,5 +195,12 @@ console.log('new avatar model', attrs.name, attrs.filename);
   processKillAvatar(killAvatar, sendingNode) {
     console.log('kill me!', killAvatar);
     this.janusobj.die();
+  }
+  requestAvatarIdentity(node) {
+    let pack = node.createPacket('AvatarIdentityRequest');
+    pack.flags.reliable = true;
+    pack.payload.uuid = this.uuid;
+console.log('request identity:', this.uuid, pack, node);
+    node.sendPacket(pack);
   }
 }
