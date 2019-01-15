@@ -6,7 +6,9 @@ class HifiClientElement extends HTMLElement {
   constructor() {
     super();
     Object.defineProperties(this, {
-      domain: { writable: true, configurable: true }
+      domain: { writable: true, configurable: true },
+      username: { writable: true, configurable: true },
+      avatar: { writable: true, configurable: true }
     });
 
     this.hifi = new HifiClient();
