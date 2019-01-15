@@ -48,7 +48,8 @@ export class VOIP extends EventTarget {
       }
       this.audiosource = false;
       this.microphoneCapturing = false;
-      this.controls.indicator.stop();
+      //this.controls.indicator.stop();
+      this.controls.waveform.active = false;
     }
     this.starting = false;
   }
@@ -70,10 +71,11 @@ export class VOIP extends EventTarget {
       if (this.worklet) {
         source.connect(this.worklet);
         this.controls.waveform.attach(source);
+        this.controls.waveform.active = true;
       }
       this.audiosource = source;
       this.microphoneCapturing = true;
-      this.controls.indicator.start();
+      //this.controls.indicator.start();
       this.starting = false;
     }
   }

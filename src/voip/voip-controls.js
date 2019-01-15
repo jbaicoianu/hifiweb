@@ -7,8 +7,8 @@ export class VoipControls extends HTMLElement {
     this.label.innerHTML = "Press 'v' to talk";
     this.appendChild(this.label);
 
-    this.indicator = document.createElement('voip-indicator');
-    this.appendChild(this.indicator);
+    //this.indicator = document.createElement('voip-indicator');
+    //this.appendChild(this.indicator);
 
     this.waveform = document.createElement('voip-waveform');
     this.appendChild(this.waveform);

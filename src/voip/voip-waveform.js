@@ -1,12 +1,22 @@
 export class VoipWaveform extends HTMLElement {
   connectedCallback() {
     this.canvas = document.createElement('canvas');
-    this.canvas.width = this.getAttribute('width') || 200;
-    this.canvas.height = this.getAttribute('height') || 40;
+    this.canvas.width = this.getAttribute('width') || 110;
+    this.canvas.height = this.getAttribute('height') || 20;
     this.appendChild(this.canvas);
 
     this.ctx = this.canvas.getContext('2d');
-
+    this.update();
+  }
+  get active() {
+    return this.getAttribute('active');
+  }
+  set active(v) {
+    if (v === false) {
+      this.removeAttribute('active');
+    } else {
+      this.setAttribute('active', v);
+    }
   }
   attach(source) {
     let audioctx = source.context;
@@ -23,7 +33,9 @@ console.log('attach to source', source);
     this.canvas.width = this.canvas.width;
 
 
-    this.analyser.getByteTimeDomainData(this.dataArray);
+    if (this.analyser) {
+      this.analyser.getByteTimeDomainData(this.dataArray);
+    }
 
     let ctx = this.ctx;
 
