@@ -38,11 +38,16 @@ class HifiClient extends EventTarget {
 
   connectToRelay() {
     console.log('Starting connection to hifi relay');
+    if (this.reconnecttimer) {
+      clearTimeout(this.reconnecttimer);
+      this.reconnecttimer = false;
+    }
     this.webrtcoptions = {};
     this.peerconnection = null;
     this.channel = null;
     this.remoteCandidates = [];
     this.connected = false;
+    this.connecting = true;
     this.signalserver = new WebSocket(this.relayserver);
     this.signalserver.addEventListener('close', (ev) => { this.connected = false; this.stopIcePingTimer(); this.stopNegotiateAudioFormatTimer(); this.stopAudioTimer();});
     this.signalserver.addEventListener('error', (ev) => { this.connected = false; console.log('error!  reconnecting in 1sec...'); setTimeout(() => this.connectToRelay(), 1000); });
@@ -64,6 +69,12 @@ class HifiClient extends EventTarget {
     }
     this.publicSocket.close();
     this.signalserver.close();
+  }
+  reconnect() {
+    if (!this.reconnecttimer && !this.connecting) {
+      this.disconnectFromRelay();
+      this.reconnecttimer = setTimeout(() => this.connectToRelay(), 250);
+    }
   }
 
   handleSignalMessage(event) {
@@ -134,6 +145,11 @@ class HifiClient extends EventTarget {
         this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.entity }));
         this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.entityscript }));
         this.dispatchEvent(new CustomEvent('node_add', { detail: nodes.message }));
+
+        nodes.avatar.addEventListener('sendfailed', (ev) => {
+          console.warn('Failed to send packet to avatar server, reconnecting...');
+          this.reconnect();
+        });
 
         // FIXME - ping handling should be handled by the nodes themselves, we're just doing one manually as a test for now
         //nodes.avatar.addPacketHandler('Ping', (packet) => this.handlePing(packet));
@@ -214,7 +230,7 @@ console.log('negotiate audio!', pack, pack.hmac);
     // FIXME - need to register with Entity server?
 
 console.log('start avatar updates', this.sessionUUID);
-    this.avatar = this.avatars.newOrExistingAvatar(this.sessionUUID, this.nodes.avatar, true);
+    this.avatar = this.avatars.newOrExistingAvatar(this.sessionUUID, this.nodes.avatar, false);
     let displayname = document.getElementById('displaynameinput');
     if (displayname && displayname.value) {
       this.avatar.setDisplayName(displayname.value);
@@ -353,6 +369,7 @@ console.log('start avatar updates', this.sessionUUID);
       this.domainHandler.domainSessionLocalID = packet.domainLocalID;
       this.domainHandler.uuid = packet.domainUUID;
       this.connected = true;
+      this.connecting = false;
       this.dispatchEvent(new CustomEvent('connect'));
       newconnection = true;
       this.startIcePingTimer();
@@ -375,6 +392,16 @@ console.log('start avatar updates', this.sessionUUID);
             this.startNegotiateAudioFormatTimer();
       }, 500);
     }
+
+    // If we don't receive a domainlist in more than 5 seconds, reconnect
+    if (this.domainlisttimer) {
+      clearTimeout(this.domainlisttimer);
+    }
+    this.domainlisttimer = setTimeout((ev) => this.handleDomainListTimeout(), 5000);
+  }
+  handleDomainListTimeout() {
+    console.log('domain list timed out, reconnecting');
+    this.reconnect();
   }
   handleAvatarIdentity(packet) {
 //console.log('got avatar identity', packet);
