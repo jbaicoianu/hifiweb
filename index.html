@@ -27,45 +27,62 @@
       </div>
     </div>
 
-<fireboxroom>
-  <assets>
+<FireBoxRoom>
+ <Assets>
+    <assetscript src="https://baicoianu.com/~bai/assets/assets.metacade.com/internetarchive/scripts/objectpool.js" />
+    <assetscript src="hifiweb-roomscript.js" />
+    <assetobject id="Robimo_black" src="http://mpassets.highfidelity.com/6c5d04a5-7637-4c01-9424-03db55e9cb97-v1/Robimo_black.fbx" />
     <assetimage id="hifi_skybox" src="https://i.imgur.com/tWJTOsq.png" />
     <assetimage id="hifi_skybox_top" src="https://i.imgur.com/n9aqQNI.png" />
     <assetimage id="hifi_skybox_bottom" src="https://i.imgur.com/efuThhc.png" />
-    <assetobject id="archive" src="http://assets.metacade.com/internetarchive/internetarchive.gltf" />
-    <assetobject id="archive-collider" src="http://assets.metacade.com/archive/models/library/library-collider.obj" />
 
-    <assetobject id="schoolgym" src="https://vesta.janusvr.com/files/nazrin-templates/gym/gym.obj" />
-    <assetobject id="schoolgym-collider" src="https://vesta.janusvr.com/files/nazrin-templates/gym/gym_collision.obj" />
+  <AssetImage id="rmap" src="https://vesta.janusvr.com/files/bepis/sky/night/Night_Radiance.dds"/>
+  <AssetImage id="irmap" src="https://vesta.janusvr.com/files/bepis/sky/night/Night_Irradiance.dds"/>
+  <AssetObject id="geometry" mtl="https://vesta.janusvr.com/files/nazrin-templates/gym/gym.mtl" src="https://vesta.janusvr.com/files/nazrin-templates/gym/gym.obj"/>
+  <AssetObject id="geometry2" src="https://vesta.janusvr.com/files/nazrin-templates/gym/gym_collision.obj"/>
+  <AssetImage id="https://vesta.janusvr.com/files/karan/hifi/contract2.png" src="https://vesta.janusvr.com/files/karan/hifi/contract2.png"/>
+  <AssetImage id="https://i.imgur.com/T96g42K.jpg" src="https://baicoianu.com/~bai/highfidelity/images/resized/T96g42K.jpg"/>
+  <AssetImage id="https://i.imgur.com/t6wmjG2.jpg" src="https://baicoianu.com/~bai/highfidelity/images/resized/t6wmjG2.jpg"/>
+  <AssetImage id="https://i.imgur.com/nuEyfCC.jpg" src="https://baicoianu.com/~bai/highfidelity/images/resized/nuEyfCC.jpg"/>
+  <AssetImage id="https://i.imgur.com/I92eUy6.jpg" src="https://baicoianu.com/~bai/highfidelity/images/resized/I92eUy6.jpg"/>
+  <AssetImage id="https://www.vrblockchainalliance.org/uploads/1/1/9/7/119720864/vrba-placeholder-logo-1_1_orig.png" src="https://www.vrblockchainalliance.org/uploads/1/1/9/7/119720864/vrba-placeholder-logo-1_1_orig.png"/>
+  <AssetImage id="https://i.imgur.com/w7WWc7e.png" src="https://i.imgur.com/w7WWc7e.png"/>
+  <AssetImage id="https://i.imgur.com/Iq03wHP.png" src="https://i.imgur.com/Iq03wHP.png"/>
+  <AssetImage id="https://i.imgur.com/LmCI6r0.jpg" src="https://baicoianu.com/~bai/highfidelity/images/resized/LmCI6r0.jpg"/>
+  <AssetImage id="https://i.imgur.com/Dhbhgex.jpg" src="https://baicoianu.com/~bai/highfidelity/images/resized/Dhbhgex.jpg"/>
+  <AssetImage id="https://cdn.discordapp.com/attachments/371399120411426826/534868960437469206/Capture.PNG" src="https://baicoianu.com/~bai/highfidelity/images/resized/Capture.jpg"/>
+  <AssetImage id="https://i.imgur.com/PiDj3G6.png" src="https://baicoianu.com/~bai/highfidelity/images/resized/PiDj3G6.jpg"/>
+  <AssetImage id="https://i.imgur.com/O0cJWhc.png" src="https://baicoianu.com/~bai/highfidelity/images/resized/O0cJWhc.jpg"/>
+  <AssetScript src="https://vesta.janusvr.com/static/js/live_update.js"/>
+  <AssetScript src="https://vesta.janusvr.com/files/admin/scripts/vesta_comment_inject.js"/>
+ </Assets>
+  <Room pbr="true" skybox_left_id="hifi_skybox_bottom" skybox_right_id="hifi_skybox_bottom" skybox_up_id="hifi_skybox_bottom" skybox_down_id="hifi_skybox_bottom" skybox_front_id="hifi_skybox_bottom" skybox_back_id="hifi_skybox_bottom" zdir="0 0 -1" walk_speed=".6" ambient=".1 .1 .1">
 
-<!--
-    <assetobject id="matthew" src="http://hifi-content.s3.amazonaws.com/Avatars/production/matthew/shirt/matthew/matthew.fbx" />
-    <assetobject id="artemis" src="http://mpassets.highfidelity.com/e76946cc-c272-4adf-9bb6-02cde0a4b57d-v1/DefaultStylizedFemale.fbx" />
-    <assetobject id="horseman" src="http://mpassets.highfidelity.com/5e9338ee-199f-4b8c-9525-13c2cf72406b-v1/horseman/horseman.fbx" />
-    <assetobject id="fmotrac" src="http://mpassets.highfidelity.com/0c2c264b-2fd2-46a4-bf80-de681881f66b-v1/F_MotRac/F_MotRac.fbx" />
-    <assetobject id="opticalinterpreter" src="http://mpassets.highfidelity.com/469c8b66-e3c2-47fb-9820-e306b1dd15c4-v1/optical_interpreter/optical_interpreter.fbx" />
-    <assetobject id="catmechsuit" src="http://mpassets.highfidelity.com/efa82bfc-0f86-4024-bdce-69454ee67eaa-v1/CatBlack_MechSuit/Cat_MechSuit.fbx" />
-    <assetobject id="catmechdress" src="http://mpassets.highfidelity.com/5013a7b2-ec93-4aa1-9637-fea9e9ba12df-v1/CatOTab_MechDress/CatOTab_MechDress.fbx" />
-    <assetobject id="james" src="http://assets.metacade.com/james/james-avatar-highfidelity/james-avatar-improved/james-avatar-improved.fbx" />
-    <assetobject id="mannequin" src="http://mpassets.highfidelity.com/ad348528-de38-420c-82bb-054cb22163f5-v1/mannequin.fbx" />
-    <assetobject id="llmale2" src="http://mpassets.highfidelity.com/28569047-6f1a-4100-af67-8054ec397cc3-v1/LLMale2/LLMale2.fbx" />
--->
-    <assetobject id="Robimo_black" src="http://mpassets.highfidelity.com/6c5d04a5-7637-4c01-9424-03db55e9cb97-v1/Robimo_black.fbx" />
-
-    <assetscript src="https://baicoianu.com/~bai/assets/assets.metacade.com/internetarchive/scripts/objectpool.js" />
-    <assetscript src="hifiweb-roomscript.js" />
-  </assets>
-  <room skybox_left_id="hifi_skybox_bottom" skybox_right_id="hifi_skybox_bottom" skybox_up_id="hifi_skybox_bottom" skybox_down_id="hifi_skybox_bottom" skybox_front_id="hifi_skybox_bottom" skybox_back_id="hifi_skybox_bottom" zdir="0 0 -1" walk_speed=".6" ambient=".1 .1 .1">
-    <object id="sphere" image_id="hifi_skybox" cull_face="front" pos="0 0 0" scale="1000 1000 1000" lighting="false" />
-    <object id="schoolgym" xcollision_id="schoolgym-collider" pos="0 0 15.8" rotation="0 180 0" />
-    <light light_shadow="true" pos=".1 4 -10" light_range="30" light_intensity="8" />
-
-    <object collision_id="cube" pos="0 -5.25 0" scale="1000 10 1000" />
+  <Object id="geometry" lighting="true" pos="0 0 15.8" rotation="0 180 0" xcollision_id="geometry2"/>
+  <light light_shadow="true" pos=".1 4 -10" light_range="30" light_intensity="8" />
+  <Object collision_id="cube" id="cube" js_id="floorcollision" pos="0 -0.5 0" scale="100000 0.1 100000" visible="false" xdir="-1 0 0.000002" zdir="-0.000002 0 -1"/>
+  <Object col="1 1 1" collision_id="plane" id="plane" js_id="screen" pos="0 2.07 28" scale="3.7 3.2 2" xdir="-0.999762 0 0.0218173" zdir="-0.0218173 0 -0.999762"/>
+  <Object collision_id="plane" cull_face="none" id="plane" image_id="https://vesta.janusvr.com/files/karan/hifi/contract2.png" js_id="jin-1-1547622141" lighting="false" pos="6.5 1.5 -5.1" scale="4 1.5 1" xdir="0 0 1" zdir="-1 0 0"/>
+  <Object collision_id="plane" cull_face="none" id="plane" image_id="https://i.imgur.com/T96g42K.jpg" js_id="jin-2-1547622609" lighting="false" pos="-7.1 1.5 -6" scale="2.7 1.6 1" xdir="0 0 -1" zdir="1 0 0"/>
+  <Object collision_id="plane" cull_face="none" id="plane" image_id="https://i.imgur.com/t6wmjG2.jpg" js_id="jin-1-1547622753" lighting="false" pos="-6.7 1.5 -9" scale="2.6 1.6 1" xdir="0.173649 0 -0.984808" zdir="0.984808 0 0.173649"/>
+  <Object collision_id="plane" cull_face="none" id="plane" image_id="https://i.imgur.com/nuEyfCC.jpg" js_id="jin-1-1547622837" lighting="false" pos="-6.6 1.5 -3.6" scale="2.3 1.5 1" xdir="-0.358368 0 -0.93358" zdir="0.93358 0 -0.358368"/>
+  <Object collision_id="plane" cull_face="none" id="plane" image_id="https://i.imgur.com/I92eUy6.jpg" js_id="jin-2-1547622904" lighting="false" pos="5.6 1.5 -1.9" scale="2.5 1.5 1" xdir="-0.5 0 0.866026" zdir="-0.866026 0 -0.5"/>
+  <Object collision_id="plane" id="plane" image_id="https://www.vrblockchainalliance.org/uploads/1/1/9/7/119720864/vrba-placeholder-logo-1_1_orig.png" js_id="Shiny_Magic_bai_3791-1-1547624056" lighting="false" pos="0.3 4.2 -16" scale="5 5 1"/>
+  <Object collision_id="plane" cull_face="none" id="plane" image_id="https://i.imgur.com/w7WWc7e.png" js_id="jin-1-1547624061" lighting="false" pos="-5.6 4.5 -11.8" scale="1.7 1.7 1"/>
+  <Object collision_id="plane" cull_face="none" id="plane" image_id="https://i.imgur.com/Iq03wHP.png" js_id="jin-2-1547624088" lighting="false" pos="5.7 4.5 -11.900001" scale="1.7 1.7 1"/>
+  <Object collision_id="plane" cull_face="none" id="plane" image_id="https://i.imgur.com/LmCI6r0.jpg" js_id="jin-3-1547624284" lighting="false" pos="4.8 2 -11.5" scale="3 2 1" xdir="0.866026 0 0.5" zdir="-0.5 0 0.866026"/>
+  <Object collision_id="plane" cull_face="none" id="plane" image_id="https://i.imgur.com/Dhbhgex.jpg" js_id="jin-4-1547624293" lighting="false" pos="6 1.5 -8.400001" scale="2.5 1.5 1" xdir="0.5 0 0.866026" zdir="-0.866026 0 0.5"/>
+  <object collision_id="plane" collision_pos="0 0 0" fwd="0.504 0 0.8637" id="plane" image_id="https://cdn.discordapp.com/attachments/371399120411426826/534868960437469206/Capture.PNG" js_id="Shiny_Magic_bai_3791-3-1547624326" lighting="false" objcount="15" pos="-4.9 2 -11.8" scale="3 2 1" xdir="0.8637 0 -0.504" zdir="0.504 0 0.8637"/>
+  <Object collision_id="cube" id="cube" js_id="Shiny_Magic_bai_3791-5-1547624900" pos="0 0.41 -13.08" scale="14.86 1 5.2"/>
+  <Object collision_id="plane" cull_face="none" id="plane" image_id="https://i.imgur.com/PiDj3G6.png" js_id="Shiny_Magic_bai_3791-0-1547625906" lighting="false" pos="-6.190014 1.12494 -2.810995" xdir="-0.358368 0 -0.93358" zdir="0.93358 0 -0.358368"/>
+  <Object collision_id="plane" cull_face="none" id="plane" image_id="https://i.imgur.com/O0cJWhc.png" js_id="Shiny_Magic_bai_3791-1-1547625925" lighting="false" pos="-6.589761 1.094856 -3.852368" xdir="-0.358368 0 -0.93358" zdir="0.93358 0 -0.358368"/>
     <object id="Robimo_black" pos="0 0 -50" scale=".01 .01 .01" />
 
-    <hificlient domain="hifi://janusvr" />
-  </room>
-</fireboxroom>
+  <hificlient domain="hifi://janusvr" />
+ </Room>
+</FireBoxRoom>
+
+
   </body>
 </html>
 
