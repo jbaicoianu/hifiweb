@@ -30,13 +30,13 @@ export class HifiAvatar {
     ];
     if (!selfavatar) {
       this.body = this.janusobj.createObject('object', {
-        id: avataroptions[Math.floor(Math.random() * avataroptions.length)],
+        //id: avataroptions[Math.floor(Math.random() * avataroptions.length)],
         scale: new THREE.Vector3(.0095, .0095, .0095),
         pos: V(0, -.8, 0)
       });
     }
     this.labelholder = this.janusobj.createObject('object', {
-      pos: V(0, 2.0, 0),
+      pos: V(0, 1.4, 0),
       billboard: 'y'
     });
     this.label = this.labelholder.createObject('text', {
