@@ -226,9 +226,13 @@ console.log('send ack!', nextACKNumber, this.ackPacket);
     var p = new Uint8Array(p1.byteLength + p2.byteLength);
     p.set(p1, 0);
     p.set(p2, p1.byteLength);
-    this.parentSocket.send(p);
-//console.log('send', packet.payload, packet, this);
-    this.dispatchEvent(new CustomEvent('send', { detail: packet }));
+    try {
+      this.parentSocket.send(p);
+  //console.log('send', packet.payload, packet, this);
+      this.dispatchEvent(new CustomEvent('send', { detail: packet }));
+    } catch (e) {
+      this.dispatchEvent(new CustomEvent('sendfailed', { detail: packet }));
+    }
   }
   isConnected() {
     return this.parentSocket.readyState == 'open';
