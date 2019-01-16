@@ -32,9 +32,10 @@ console.log('attach to source', source);
   update() {
     this.canvas.width = this.canvas.width;
 
-
+    let bufferLength = 0;
     if (this.analyser) {
       this.analyser.getByteTimeDomainData(this.dataArray);
+      bufferLength = this.analyser.frequencyBinCount;
     }
 
     let ctx = this.ctx;
@@ -46,7 +47,6 @@ console.log('attach to source', source);
     ctx.strokeStyle = 'rgb(0,255,0)';
     ctx.beginPath();
 
-    let bufferLength = this.analyser.frequencyBinCount;
 
     let slicewidth = this.canvas.width / bufferLength;
     for (let i = 0, x = 0; i < bufferLength; i++) {
